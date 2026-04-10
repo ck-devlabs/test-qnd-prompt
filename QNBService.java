@@ -98,4 +98,21 @@ public class QNBService {
             "Resolved date " + monthDay + " is outside the 182-day window [" + today + " → " + windowEnd + "]"
         );
     }
+
+    public JsonNode resolveAndOverrideQuoteNeedByDate(JsonNode jsonNode) {
+    // Resolve the full date using existing logic
+    LocalDate resolvedDate = resolveQuoteNeedByDate(jsonNode);
+
+    // Cast to ObjectNode to allow mutation
+    if (!(jsonNode instanceof ObjectNode)) {
+        throw new IllegalArgumentException("JsonNode must be an ObjectNode to allow field override");
+    }
+
+    ObjectNode objectNode = (ObjectNode) jsonNode;
+
+    // Override the quoteNeedByDate field with the resolved full date
+    objectNode.put("quoteNeedByDate", resolvedDate.toString()); // e.g. "2026-10-09"
+
+    return objectNode;
+}
 }
