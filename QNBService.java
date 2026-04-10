@@ -84,51 +84,22 @@ public class QNBService {
     }
 
     private LocalDate resolveWithinWindow(MonthDay monthDay, LocalDate baseDate) {
-    LocalDate windowStart = baseDate.minusDays(DAYS_WINDOW);
-    LocalDate windowEnd   = baseDate.plusDays(DAYS_WINDOW + 1); // +1 to include boundary
+    LocalDate best = null;
+        long bestScore = Long.MAX_VALUE;
 
-    System.out.println("windowStart : " + windowStart);
-    System.out.println("baseDate    : " + baseDate);
-    System.out.println("windowEnd   : " + windowEnd);
+        for (int yearOffset = -1; yearOffset <= 1; yearOffset++) {
+            LocalDate candidate = monthDay.atYear(baseDate.getYear() + yearOffset);
 
-    List<LocalDate> candidates = List.of(
-        monthDay.atYear(baseDate.getYear() - 1),
-        monthDay.atYear(baseDate.getYear()),
-        monthDay.atYear(baseDate.getYear() + 1)
-    );
+            long daysDiff = Math.abs(ChronoUnit.DAYS.between(baseDate, candidate));
+            long score = Math.abs(daysDiff - 182);
 
-    candidates.forEach(c -> System.out.printf(
-        "candidate: %s (%d days away, %s)%n",
-        c,
-        Math.abs(ChronoUnit.DAYS.between(baseDate, c)),
-        c.isBefore(baseDate) ? "past" : "future/same"
-    ));
+            if (score < bestScore) {
+                bestScore = score;
+                best = candidate;
+            }
+        }
 
-    // 1. Find the closest FUTURE candidate within the window
-    Optional<LocalDate> futureCandidate = candidates.stream()
-        .filter(c -> !c.isBefore(baseDate))               // future or same day
-        .filter(c -> !c.isAfter(windowEnd))               // within window
-        .min(Comparator.comparingLong(c ->
-            ChronoUnit.DAYS.between(baseDate, c)));
-
-    if (futureCandidate.isPresent()) return futureCandidate.get();
-
-    // 2. Fall back to closest PAST candidate within the window
-    Optional<LocalDate> pastCandidate = candidates.stream()
-        .filter(c -> c.isBefore(baseDate))                // strictly past
-        .filter(c -> !c.isBefore(windowStart))            // within window
-        .min(Comparator.comparingLong(c ->
-            Math.abs(ChronoUnit.DAYS.between(baseDate, c))));
-
-    if (pastCandidate.isPresent()) return pastCandidate.get();
-
-    // 3. Nothing in window — return nearest future overall, else nearest past
-    return candidates.stream()
-        .min(Comparator
-            .comparingInt((LocalDate c) -> c.isBefore(baseDate) ? 1 : 0) // future first
-            .thenComparingLong(c ->
-                Math.abs(ChronoUnit.DAYS.between(baseDate, c))))
-        .orElseThrow();
+        return best;
 }
 
     public JsonNode resolveAndOverrideQuoteNeedByDate(JsonNode jsonNode) {
