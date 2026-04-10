@@ -15,19 +15,31 @@ public class QNBService {
 
     // Formats to try for partial date parsing (e.g., "9 Oct", "Oct 9", "9 October")
     private static final DateTimeFormatter[] PARTIAL_DATE_FORMATTERS = {
-        new DateTimeFormatterBuilder()
-            .parseCaseInsensitive()
-            .appendPattern("d MMM")
-            .toFormatter(Locale.ENGLISH),
-        new DateTimeFormatterBuilder()
-            .parseCaseInsensitive()
-            .appendPattern("MMM d")
-            .toFormatter(Locale.ENGLISH),
-        new DateTimeFormatterBuilder()
-            .parseCaseInsensitive()
-            .appendPattern("d MMMM")
-            .toFormatter(Locale.ENGLISH)
-    };
+    new DateTimeFormatterBuilder()
+        .parseCaseInsensitive()
+        .appendPattern("d MMM")
+        .toFormatter(Locale.ENGLISH),
+    new DateTimeFormatterBuilder()
+        .parseCaseInsensitive()
+        .appendPattern("MMM d")           // handles "Oct 7"
+        .toFormatter(Locale.ENGLISH),
+    new DateTimeFormatterBuilder()
+        .parseCaseInsensitive()
+        .appendPattern("MMM dd")          // handles "Oct 07"
+        .toFormatter(Locale.ENGLISH),
+    new DateTimeFormatterBuilder()
+        .parseCaseInsensitive()
+        .appendPattern("d MMMM")
+        .toFormatter(Locale.ENGLISH),
+    new DateTimeFormatterBuilder()
+        .parseCaseInsensitive()
+        .appendPattern("MMMM d")          // handles "October 7"
+        .toFormatter(Locale.ENGLISH),
+    new DateTimeFormatterBuilder()
+        .parseCaseInsensitive()
+        .appendPattern("MMMM dd")         // handles "October 07"
+        .toFormatter(Locale.ENGLISH)
+};
 
     /**
      * Extracts the quoteNeedByDate from a JsonNode and resolves the full date
