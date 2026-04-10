@@ -83,33 +83,53 @@ public class QNBService {
         );
     }
 
-    /**
-     * Resolves a MonthDay to a full LocalDate by checking:
-     * 1. Same year as today → if within [today, today + 182 days], return it.
-     * 2. Next year → if within [today, today + 182 days], return it.
-     * 3. Otherwise, throw an exception.
-     */
-    private LocalDate resolveWithinWindow(MonthDay monthDay) {
-        LocalDate today = LocalDate.now();
-        LocalDate windowEnd = today.plusDays(DAYS_WINDOW);
+    private LocalDate resolveWithinWindow(MonthDay monthDay, LocalDate baseDate) {
+    LocalDate windowStart = baseDate.minusDays(DAYS_WINDOW);
+    LocalDate windowEnd   = baseDate.plusDays(DAYS_WINDOW + 1); // +1 to include boundary
 
-        // Try current year first
-        LocalDate candidateThisYear = monthDay.atYear(today.getYear());
-        if (!candidateThisYear.isBefore(today) && !candidateThisYear.isAfter(windowEnd)) {
-            return candidateThisYear;
-        }
+    System.out.println("windowStart : " + windowStart);
+    System.out.println("baseDate    : " + baseDate);
+    System.out.println("windowEnd   : " + windowEnd);
 
-        // Try next year
-        LocalDate candidateNextYear = monthDay.atYear(today.getYear() + 1);
-        if (!candidateNextYear.isBefore(today) && !candidateNextYear.isAfter(windowEnd)) {
-            return candidateNextYear;
-        }
+    List<LocalDate> candidates = List.of(
+        monthDay.atYear(baseDate.getYear() - 1),
+        monthDay.atYear(baseDate.getYear()),
+        monthDay.atYear(baseDate.getYear() + 1)
+    );
 
-        // Date is outside the 182-day window
-        throw new IllegalArgumentException(
-            "Resolved date " + monthDay + " is outside the 182-day window [" + today + " → " + windowEnd + "]"
-        );
-    }
+    candidates.forEach(c -> System.out.printf(
+        "candidate: %s (%d days away, %s)%n",
+        c,
+        Math.abs(ChronoUnit.DAYS.between(baseDate, c)),
+        c.isBefore(baseDate) ? "past" : "future/same"
+    ));
+
+    // 1. Find the closest FUTURE candidate within the window
+    Optional<LocalDate> futureCandidate = candidates.stream()
+        .filter(c -> !c.isBefore(baseDate))               // future or same day
+        .filter(c -> !c.isAfter(windowEnd))               // within window
+        .min(Comparator.comparingLong(c ->
+            ChronoUnit.DAYS.between(baseDate, c)));
+
+    if (futureCandidate.isPresent()) return futureCandidate.get();
+
+    // 2. Fall back to closest PAST candidate within the window
+    Optional<LocalDate> pastCandidate = candidates.stream()
+        .filter(c -> c.isBefore(baseDate))                // strictly past
+        .filter(c -> !c.isBefore(windowStart))            // within window
+        .min(Comparator.comparingLong(c ->
+            Math.abs(ChronoUnit.DAYS.between(baseDate, c))));
+
+    if (pastCandidate.isPresent()) return pastCandidate.get();
+
+    // 3. Nothing in window — return nearest future overall, else nearest past
+    return candidates.stream()
+        .min(Comparator
+            .comparingInt((LocalDate c) -> c.isBefore(baseDate) ? 1 : 0) // future first
+            .thenComparingLong(c ->
+                Math.abs(ChronoUnit.DAYS.between(baseDate, c))))
+        .orElseThrow();
+}
 
     public JsonNode resolveAndOverrideQuoteNeedByDate(JsonNode jsonNode) {
     // Resolve the full date using existing logic
