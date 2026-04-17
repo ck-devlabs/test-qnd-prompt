@@ -1,10 +1,12 @@
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.ObjectNode; // Added missing import
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
 import java.time.MonthDay;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeFormatterBuilder;
+import java.time.format.DateTimeParseException;
 import java.time.temporal.ChronoUnit;
 import java.util.Locale;
 
@@ -13,44 +15,16 @@ public class QNBService {
 
     private static final int DAYS_WINDOW = 182;
 
-    // Formats to try for partial date parsing (e.g., "9 Oct", "Oct 9", "9 October")
     private static final DateTimeFormatter[] PARTIAL_DATE_FORMATTERS = {
-    new DateTimeFormatterBuilder()
-        .parseCaseInsensitive()
-        .appendPattern("d MMM")
-        .toFormatter(Locale.ENGLISH),
-    new DateTimeFormatterBuilder()
-        .parseCaseInsensitive()
-        .appendPattern("MMM d")           // handles "Oct 7"
-        .toFormatter(Locale.ENGLISH),
-    new DateTimeFormatterBuilder()
-        .parseCaseInsensitive()
-        .appendPattern("MMM dd")          // handles "Oct 07"
-        .toFormatter(Locale.ENGLISH),
-    new DateTimeFormatterBuilder()
-        .parseCaseInsensitive()
-        .appendPattern("d MMMM")
-        .toFormatter(Locale.ENGLISH),
-    new DateTimeFormatterBuilder()
-        .parseCaseInsensitive()
-        .appendPattern("MMMM d")          // handles "October 7"
-        .toFormatter(Locale.ENGLISH),
-    new DateTimeFormatterBuilder()
-        .parseCaseInsensitive()
-        .appendPattern("MMMM dd")         // handles "October 07"
-        .toFormatter(Locale.ENGLISH)
-};
+        new DateTimeFormatterBuilder().parseCaseInsensitive().appendPattern("d MMM").toFormatter(Locale.ENGLISH),
+        new DateTimeFormatterBuilder().parseCaseInsensitive().appendPattern("MMM d").toFormatter(Locale.ENGLISH),
+        new DateTimeFormatterBuilder().parseCaseInsensitive().appendPattern("MMM dd").toFormatter(Locale.ENGLISH),
+        new DateTimeFormatterBuilder().parseCaseInsensitive().appendPattern("d MMMM").toFormatter(Locale.ENGLISH),
+        new DateTimeFormatterBuilder().parseCaseInsensitive().appendPattern("MMMM d").toFormatter(Locale.ENGLISH),
+        new DateTimeFormatterBuilder().parseCaseInsensitive().appendPattern("MMMM dd").toFormatter(Locale.ENGLISH)
+    };
 
-    /**
-     * Extracts the quoteNeedByDate from a JsonNode and resolves the full date
-     * by finding the closest future occurrence within 182 days from today.
-     *
-     * @param jsonNode the JsonNode containing "quoteNeedByDate"
-     * @return resolved LocalDate within the 182-day window
-     * @throws IllegalArgumentException if the date is missing, unparseable, or out of range
-     */
     public LocalDate resolveQuoteNeedByDate(JsonNode jsonNode) {
-        // Step 1: Extract the raw date string from the JSON
         if (jsonNode == null || !jsonNode.has("quoteNeedByDate")) {
             throw new IllegalArgumentException("JsonNode is missing 'quoteNeedByDate' field");
         }
@@ -60,73 +34,73 @@ public class QNBService {
             throw new IllegalArgumentException("'quoteNeedByDate' field is empty");
         }
 
-        // Step 2: Parse the partial date (e.g., "9 Oct") into a MonthDay
         MonthDay monthDay = parsePartialDate(rawDate);
-
-        // Step 3: Resolve the full date within the 182-day window
-        return resolveWithinWindow(monthDay);
+        
+        // Fix: Pass LocalDate.now() to match the method signature
+        return resolveWithinWindow(monthDay, LocalDate.now());
     }
 
-    /**
-     * Tries multiple formatters to parse a partial date string into a MonthDay.
-     */
     private MonthDay parsePartialDate(String rawDate) {
-        // Remove ordinal suffixes: "17th" → "17"
-    String normalized = rawDate.replaceAll("(?i)(?<=\\d)(st|nd|rd|th)\\b", "").trim();
-    
-    // Remove "of": "17 of April" → "17 April"
-    normalized = normalized.replaceAll("(?i)\\bof\\b", "").trim();
+        // Normalize: remove ordinals, "of", and collapse extra spaces
+        String normalized = rawDate.replaceAll("(?i)(?<=\\d)(st|nd|rd|th)\\b", "")
+                                   .replaceAll("(?i)\\bof\\b", "")
+                                   .replaceAll("\\s+", " ")
+                                   .trim();
 
         for (DateTimeFormatter formatter : PARTIAL_DATE_FORMATTERS) {
-        try {
-            return MonthDay.parse(normalized, formatter);
-        } catch (Exception ignored) {
-            // Try the next formatter
+            try {
+                return MonthDay.parse(normalized, formatter);
+            } catch (DateTimeParseException ignored) {
+                // Try next pattern
+            }
         }
-    }
         throw new IllegalArgumentException(
-            "Unable to parse partial date: '" + rawDate + "'. Expected formats: '9 Oct', 'Oct 9', '9 October'"
+            "Unable to parse partial date: '" + rawDate + "'. Expected formats like '9 Oct' or '17th of April'"
         );
     }
 
+    /**
+     * Finds the occurrence of the MonthDay that falls within the 
+     * next 182 days. If multiple or none, it picks the one closest 
+     * to the window start (the "soonest" valid date).
+     */
     private LocalDate resolveWithinWindow(MonthDay monthDay, LocalDate baseDate) {
-    LocalDate best = null;
-        long bestScore = Long.MAX_VALUE;
+        LocalDate best = null;
+        long smallestDiff = Long.MAX_VALUE;
 
+        // Check last year, current year, and next year to handle year-wrap 
+        // (e.g., today is Dec, user wants Jan)
         for (int yearOffset = -1; yearOffset <= 1; yearOffset++) {
             LocalDate candidate = monthDay.atYear(baseDate.getYear() + yearOffset);
+            long daysFromToday = ChronoUnit.DAYS.between(baseDate, candidate);
 
-            long daysDiff = Math.abs(ChronoUnit.DAYS.between(baseDate, candidate));
-            long score = Math.abs(daysDiff - 182);
-
-            if (score < bestScore) {
-                bestScore = score;
-                best = candidate;
+            // Logic: Must be today or in the future, and within the window
+            if (daysFromToday >= 0 && daysFromToday <= DAYS_WINDOW) {
+                if (daysFromToday < smallestDiff) {
+                    smallestDiff = daysFromToday;
+                    best = candidate;
+                }
             }
         }
 
+        if (best == null) {
+            // Fallback: If no date fits the window, provide the absolute closest future occurrence
+            return monthDay.atYear(baseDate.getYear() + (monthDay.getMonthValue() < baseDate.getMonthValue() ? 1 : 0));
+        }
+
         return best;
-}
-
-    public JsonNode resolveAndOverrideQuoteNeedByDate(JsonNode jsonNode) {
-    // Resolve the full date using existing logic
-    LocalDate resolvedDate = resolveQuoteNeedByDate(jsonNode);
-
-    // Cast to ObjectNode to allow mutation
-    if (!(jsonNode instanceof ObjectNode)) {
-        throw new IllegalArgumentException("JsonNode must be an ObjectNode to allow field override");
     }
 
-    ObjectNode objectNode = (ObjectNode) jsonNode;
+    public JsonNode resolveAndOverrideQuoteNeedByDate(JsonNode jsonNode) {
+        LocalDate resolvedDate = resolveQuoteNeedByDate(jsonNode);
 
-    // Override the quoteNeedByDate field with the resolved full date
-    objectNode.put("quoteNeedByDate", resolvedDate.toString()); // e.g. "2026-10-09"
+        if (!(jsonNode instanceof ObjectNode)) {
+            throw new IllegalArgumentException("JsonNode must be an ObjectNode to allow field override");
+        }
 
-    return objectNode;
-}
+        ObjectNode objectNode = (ObjectNode) jsonNode;
+        objectNode.put("quoteNeedByDate", resolvedDate.toString()); 
 
-
-
-
-    
+        return objectNode;
+    }
 }
