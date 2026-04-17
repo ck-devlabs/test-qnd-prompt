@@ -71,7 +71,11 @@ public class QNBService {
      * Tries multiple formatters to parse a partial date string into a MonthDay.
      */
     private MonthDay parsePartialDate(String rawDate) {
-        String normalized = rawDate.replaceAll("(?<=\\d)(st|nd|rd|th)\\b", "").trim();
+        // Remove ordinal suffixes: "17th" → "17"
+    String normalized = rawDate.replaceAll("(?i)(?<=\\d)(st|nd|rd|th)\\b", "").trim();
+    
+    // Remove "of": "17 of April" → "17 April"
+    normalized = normalized.replaceAll("(?i)\\bof\\b", "").trim();
 
         for (DateTimeFormatter formatter : PARTIAL_DATE_FORMATTERS) {
         try {
