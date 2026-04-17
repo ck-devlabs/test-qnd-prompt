@@ -16,12 +16,17 @@ public class QNBService {
     private static final int DAYS_WINDOW = 182;
 
     private static final DateTimeFormatter[] PARTIAL_DATE_FORMATTERS = {
-        new DateTimeFormatterBuilder().parseCaseInsensitive().appendPattern("d MMM").toFormatter(Locale.ENGLISH),
-        new DateTimeFormatterBuilder().parseCaseInsensitive().appendPattern("MMM d").toFormatter(Locale.ENGLISH),
-        new DateTimeFormatterBuilder().parseCaseInsensitive().appendPattern("MMM dd").toFormatter(Locale.ENGLISH),
-        new DateTimeFormatterBuilder().parseCaseInsensitive().appendPattern("d MMMM").toFormatter(Locale.ENGLISH),
-        new DateTimeFormatterBuilder().parseCaseInsensitive().appendPattern("MMMM d").toFormatter(Locale.ENGLISH),
-        new DateTimeFormatterBuilder().parseCaseInsensitive().appendPattern("MMMM dd").toFormatter(Locale.ENGLISH)
+        private static final DateTimeFormatter[] PARTIAL_DATE_FORMATTERS = {
+    // 1. Try Full Month Names first (MMMM)
+    new DateTimeFormatterBuilder().parseCaseInsensitive().appendPattern("d MMMM").toFormatter(Locale.ENGLISH),
+    new DateTimeFormatterBuilder().parseCaseInsensitive().appendPattern("MMMM d").toFormatter(Locale.ENGLISH),
+    new DateTimeFormatterBuilder().parseCaseInsensitive().appendPattern("MMMM dd").toFormatter(Locale.ENGLISH),
+
+    // 2. Try Abbreviated Month Names second (MMM)
+    new DateTimeFormatterBuilder().parseCaseInsensitive().appendPattern("d MMM").toFormatter(Locale.ENGLISH),
+    new DateTimeFormatterBuilder().parseCaseInsensitive().appendPattern("MMM d").toFormatter(Locale.ENGLISH),
+    new DateTimeFormatterBuilder().parseCaseInsensitive().appendPattern("MMM dd").toFormatter(Locale.ENGLISH)
+};
     };
 
     public LocalDate resolveQuoteNeedByDate(JsonNode jsonNode) {
