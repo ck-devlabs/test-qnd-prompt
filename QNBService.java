@@ -118,4 +118,61 @@ public class QNBService {
 
     return objectNode;
 }
+
+
+
+// Matches: "17th of April", "31st April", "2nd of March", etc.
+    private static final Pattern DATE_PATTERN = Pattern.compile(
+        "^(\\d{1,2})(?:st|nd|rd|th)\\s+(?:of\\s+)?(\\w+)$",
+        Pattern.CASE_INSENSITIVE
+    );
+
+    private static final DateTimeFormatter OUTPUT_FORMATTER =
+        DateTimeFormatter.ofPattern("MMMM d", Locale.ENGLISH);
+
+    public String format(String input) {
+        if (input == null || input.isBlank()) {
+            throw new IllegalArgumentException("Date input must not be null or blank");
+        }
+
+        Matcher matcher = DATE_PATTERN.matcher(input.trim());
+        if (!matcher.matches()) {
+            throw new DateParseException("Unrecognized date format: " + input);
+        }
+
+        int day = Integer.parseInt(matcher.group(1));
+        String monthStr = matcher.group(2);
+
+        Month month = parseMonth(monthStr);
+        validateDay(day, month);
+
+        // Use a leap year (2000) to avoid Feb 29 false negatives
+        LocalDate date = LocalDate.of(2000, month, day);
+        return date.format(OUTPUT_FORMATTER);
+    }
+
+    private Month parseMonth(String monthStr) {
+        try {
+            return Month.valueOf(monthStr.toUpperCase(Locale.ENGLISH));
+        } catch (IllegalArgumentException e) {
+            throw new DateParseException("Unknown month: " + monthStr);
+        }
+    }
+
+    private void validateDay(int day, Month month) {
+        // Max days using a leap year to be lenient on Feb
+        int maxDay = month.length(true);
+        if (day < 1 || day > maxDay) {
+            throw new DateParseException(
+                String.format("Day %d is invalid for month %s", day, month)
+            );
+        }
+    }
+
+
+
+
+
+
+    
 }
