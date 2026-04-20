@@ -17,15 +17,67 @@ public class QNBService {
 
     private static final DateTimeFormatter[] PARTIAL_DATE_FORMATTERS = {
         private static final DateTimeFormatter[] PARTIAL_DATE_FORMATTERS = {
-    // 1. Try Full Month Names first (MMMM)
-    new DateTimeFormatterBuilder().parseCaseInsensitive().appendPattern("d MMMM").toFormatter(Locale.ENGLISH),
-    new DateTimeFormatterBuilder().parseCaseInsensitive().appendPattern("MMMM d").toFormatter(Locale.ENGLISH),
-    new DateTimeFormatterBuilder().parseCaseInsensitive().appendPattern("MMMM dd").toFormatter(Locale.ENGLISH),
+    private static final DateTimeFormatter[] PARTIAL_DATE_FORMATTERS = {
+    // "9 Oct", "17 Apr", "1 Jan"
+    new DateTimeFormatterBuilder()
+        .parseCaseInsensitive()
+        .appendPattern("d MMM")
+        .toFormatter(Locale.ENGLISH),
 
-    // 2. Try Abbreviated Month Names second (MMM)
-    new DateTimeFormatterBuilder().parseCaseInsensitive().appendPattern("d MMM").toFormatter(Locale.ENGLISH),
-    new DateTimeFormatterBuilder().parseCaseInsensitive().appendPattern("MMM d").toFormatter(Locale.ENGLISH),
-    new DateTimeFormatterBuilder().parseCaseInsensitive().appendPattern("MMM dd").toFormatter(Locale.ENGLISH)
+    // "9 October", "17 April", "1 January"
+    new DateTimeFormatterBuilder()
+        .parseCaseInsensitive()
+        .appendPattern("d MMMM")
+        .toFormatter(Locale.ENGLISH),
+
+    // "Oct 9", "Apr 17", "Jan 1"
+    new DateTimeFormatterBuilder()
+        .parseCaseInsensitive()
+        .appendPattern("MMM d")
+        .toFormatter(Locale.ENGLISH),
+
+    // "Oct 09", "Apr 17"  (zero-padded)
+    new DateTimeFormatterBuilder()
+        .parseCaseInsensitive()
+        .appendPattern("MMM dd")
+        .toFormatter(Locale.ENGLISH),
+
+    // "October 9", "April 17", "May 1"  ← covers "May 1st" after normalization
+    new DateTimeFormatterBuilder()
+        .parseCaseInsensitive()
+        .appendPattern("MMMM d")
+        .toFormatter(Locale.ENGLISH),
+
+    // "October 09", "April 17"  (zero-padded)
+    new DateTimeFormatterBuilder()
+        .parseCaseInsensitive()
+        .appendPattern("MMMM dd")
+        .toFormatter(Locale.ENGLISH),
+
+    // "9 Oct 2025", "17 Apr 2025"  (year ignored, MonthDay extracted)
+    new DateTimeFormatterBuilder()
+        .parseCaseInsensitive()
+        .appendPattern("d MMM yyyy")
+        .toFormatter(Locale.ENGLISH),
+
+    // "9 October 2025", "17 April 2025"
+    new DateTimeFormatterBuilder()
+        .parseCaseInsensitive()
+        .appendPattern("d MMMM yyyy")
+        .toFormatter(Locale.ENGLISH),
+
+    // "October 9 2025", "April 17 2025"
+    new DateTimeFormatterBuilder()
+        .parseCaseInsensitive()
+        .appendPattern("MMMM d yyyy")
+        .toFormatter(Locale.ENGLISH),
+
+    // "Oct 9 2025", "Apr 17 2025"
+    new DateTimeFormatterBuilder()
+        .parseCaseInsensitive()
+        .appendPattern("MMM d yyyy")
+        .toFormatter(Locale.ENGLISH),
+};
 };
     };
 
