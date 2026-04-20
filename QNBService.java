@@ -16,8 +16,7 @@ public class QNBService {
     private static final int DAYS_WINDOW = 182;
 
     private static final DateTimeFormatter[] PARTIAL_DATE_FORMATTERS = {
-        private static final DateTimeFormatter[] PARTIAL_DATE_FORMATTERS = {
-    private static final DateTimeFormatter[] PARTIAL_DATE_FORMATTERS = {
+       
     // "9 Oct", "17 Apr", "1 Jan"
     new DateTimeFormatterBuilder()
         .parseCaseInsensitive()
@@ -78,8 +77,7 @@ public class QNBService {
         .appendPattern("MMM d yyyy")
         .toFormatter(Locale.ENGLISH),
 };
-};
-    };
+
 
     public LocalDate resolveQuoteNeedByDate(JsonNode jsonNode) {
         if (jsonNode == null || !jsonNode.has("quoteNeedByDate")) {
