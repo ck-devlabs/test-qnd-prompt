@@ -73,31 +73,51 @@ public class QNBService {
      * to the window start (the "soonest" valid date).
      */
     private LocalDate resolveWithinWindow(MonthDay monthDay, LocalDate baseDate) {
-        LocalDate best = null;
-        long smallestDiff = Long.MAX_VALUE;
+    LocalDate best = null;
+    long smallestDiff = Long.MAX_VALUE;
 
-        // Check last year, current year, and next year to handle year-wrap 
-        // (e.g., today is Dec, user wants Jan)
-        for (int yearOffset = -1; yearOffset <= 1; yearOffset++) {
-            LocalDate candidate = monthDay.atYear(baseDate.getYear() + yearOffset);
-            long daysFromToday = ChronoUnit.DAYS.between(baseDate, candidate);
+    for (int yearOffset = -1; yearOffset <= 1; yearOffset++) {
+        int targetYear = baseDate.getYear() + yearOffset;
 
-            // Logic: Must be today or in the future, and within the window
-            if (daysFromToday >= 0 && daysFromToday <= DAYS_WINDOW) {
-                if (daysFromToday < smallestDiff) {
-                    smallestDiff = daysFromToday;
-                    best = candidate;
-                }
+        // Skip Feb 29 on non-leap years explicitly
+        if (monthDay.equals(MonthDay.of(2, 29)) && !java.time.Year.isLeap(targetYear)) {
+            continue;
+        }
+
+        LocalDate candidate = monthDay.atYear(targetYear);
+        long daysFromToday = ChronoUnit.DAYS.between(baseDate, candidate);
+
+        if (daysFromToday >= 0 && daysFromToday <= DAYS_WINDOW) {
+            if (daysFromToday < smallestDiff) {
+                smallestDiff = daysFromToday;
+                best = candidate;
             }
         }
-
-        if (best == null) {
-            // Fallback: If no date fits the window, provide the absolute closest future occurrence
-            return monthDay.atYear(baseDate.getYear() + (monthDay.getMonthValue() < baseDate.getMonthValue() ? 1 : 0));
-        }
-
-        return best;
     }
+
+    if (best == null) {
+        // Fallback: find the next future occurrence after the window
+        // Fix: compare the full date, not just the month number
+        LocalDate sameYear = monthDay.equals(MonthDay.of(2, 29))
+            ? null  // handle leap separately
+            : monthDay.atYear(baseDate.getYear());
+
+        if (sameYear != null && sameYear.isAfter(baseDate)) {
+            // same year date is in the future but beyond window → use it
+            return sameYear;
+        } else {
+            // same year date is in the past or today → use next year
+            int nextYear = baseDate.getYear() + 1;
+            // For Feb 29, find the next leap year
+            if (monthDay.equals(MonthDay.of(2, 29))) {
+                while (!java.time.Year.isLeap(nextYear)) nextYear++;
+            }
+            return monthDay.atYear(nextYear);
+        }
+    }
+
+    return best;
+}
 
     public JsonNode resolveAndOverrideQuoteNeedByDate(JsonNode jsonNode) {
         LocalDate resolvedDate = resolveQuoteNeedByDate(jsonNode);
