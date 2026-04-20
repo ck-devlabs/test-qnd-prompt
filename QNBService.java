@@ -45,24 +45,27 @@ public class QNBService {
         return resolveWithinWindow(monthDay, LocalDate.now());
     }
 
-    private MonthDay parsePartialDate(String rawDate) {
-        // Normalize: remove ordinals, "of", and collapse extra spaces
-        String normalized = rawDate.replaceAll("(?i)(?<=\\d)(st|nd|rd|th)\\b", "")
-                                   .replaceAll("(?i)\\bof\\b", "")
-                                   .replaceAll("\\s+", " ")
-                                   .trim();
+    public MonthDay parsePartialDate(String rawDate) {
+    // Remove ordinal suffixes: "17th" → "17"
+    String normalized = rawDate.replaceAll("(?i)(?<=\\d)(st|nd|rd|th)\\b", "").trim();
 
-        for (DateTimeFormatter formatter : PARTIAL_DATE_FORMATTERS) {
-            try {
-                return MonthDay.parse(normalized, formatter);
-            } catch (DateTimeParseException ignored) {
-                // Try next pattern
-            }
+    // Remove "of": "17 of April" → "17 April"
+    normalized = normalized.replaceAll("(?i)\\bof\\b", "").trim();
+
+    // Collapse multiple spaces into one
+    normalized = normalized.replaceAll("\\s+", " ").trim();
+
+    for (DateTimeFormatter formatter : PARTIAL_DATE_FORMATTERS) {
+        try {
+            return MonthDay.from(formatter.parse(normalized)); // ← key change
+        } catch (Exception ignored) {
+            // Try the next formatter
         }
-        throw new IllegalArgumentException(
-            "Unable to parse partial date: '" + rawDate + "'. Expected formats like '9 Oct' or '17th of April'"
-        );
     }
+    throw new IllegalArgumentException(
+        "Unable to parse partial date: '" + rawDate + "'. Expected formats: '9 Oct', '17th April', '17th of April'"
+    );
+}
 
     /**
      * Finds the occurrence of the MonthDay that falls within the 
