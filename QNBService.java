@@ -95,26 +95,35 @@ public class QNBService {
         return resolveWithinWindow(monthDay, LocalDate.now());
     }
 
-    public MonthDay parsePartialDate(String rawDate) {
-    // Remove ordinal suffixes: "17th" → "17"
+    /**
+ * Parses raw date string into int[]{month, day}.
+ * If only a day number is provided (e.g. "30", "30th"),
+ * assumes the current month from baseDate.
+ */
+private int[] parsePartialDate(String rawDate, LocalDate baseDate) {
+    // Normalize: strip ordinals, "of", collapse spaces
     String normalized = rawDate.replaceAll("(?i)(?<=\\d)(st|nd|rd|th)\\b", "").trim();
-
-    // Remove "of": "17 of April" → "17 April"
     normalized = normalized.replaceAll("(?i)\\bof\\b", "").trim();
-
-    // Collapse multiple spaces into one
     normalized = normalized.replaceAll("\\s+", " ").trim();
 
-    for (DateTimeFormatter formatter : PARTIAL_DATE_FORMATTERS) {
-        try {
-            return MonthDay.from(formatter.parse(normalized)); // ← key change
-        } catch (Exception ignored) {
-            // Try the next formatter
-        }
+    // Day-only input e.g. "30", "5", "21" → assume current month
+    if (normalized.matches("\\d{1,2}")) {
+        int day   = Integer.parseInt(normalized);
+        int month = baseDate.getMonthValue();
+        return new int[]{month, day};
     }
-    throw new IllegalArgumentException(
-        "Unable to parse partial date: '" + rawDate + "'. Expected formats: '9 Oct', '17th April', '17th of April'"
-    );
+
+    // Full month+day input e.g. "9 Oct", "17 April"
+    try {
+        var ta    = PARTIAL_DATE_FORMATTER.parse(normalized);
+        int month = ta.get(ChronoField.MONTH_OF_YEAR);
+        int day   = ta.get(ChronoField.DAY_OF_MONTH);
+        return new int[]{month, day};
+    } catch (Exception e) {
+        throw new IllegalArgumentException(
+            "Unable to parse partial date: '" + rawDate + "'"
+        );
+    }
 }
 
     /**
