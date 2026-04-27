@@ -95,36 +95,51 @@ public class QNBService {
         return resolveWithinWindow(monthDay, LocalDate.now());
     }
 
+private static MonthDay parsePartialDate(String rawDate) {
+        // Remove ordinal suffixes: "17th" → "17"
+        String normalized = rawDate.replaceAll("(?i)(?<=\\d)(st|nd|rd|th)\\b", "").trim();
+
+        // Remove "of": "17 of April" → "17 April"
+        normalized = normalized.replaceAll("(?i)\\bof\\b", "").trim();
+
+        // Collapse multiple spaces into one
+        normalized = normalized.replaceAll("\\s+", " ").trim();
+
+        try {
+            // If only a day number remains (no month), use current month
+            if (normalized.matches("\\d{1,2}")) {
+                int day = Integer.parseInt(normalized);
+                Month currentMonth = LocalDate.now().getMonth();
+                return resolveMonthDay(currentMonth, day);
+            }
+
+            TemporalAccessor accessor = PARTIAL_DATE_FORMATTERS.parse(normalized);
+            int day   = accessor.get(ChronoField.DAY_OF_MONTH);
+            Month month = Month.of(accessor.get(ChronoField.MONTH_OF_YEAR));
+            return resolveMonthDay(month, day);
+
+        } catch (Exception ignored) {
+            //log.error("Error parsing partial date {}", normalized, ignored);
+            return null;
+        }
+    }
+
     /**
- * Parses raw date string into int[]{month, day}.
- * If only a day number is provided (e.g. "30", "30th"),
- * assumes the current month from baseDate.
- */
-private int[] parsePartialDate(String rawDate, LocalDate baseDate) {
-    // Normalize: strip ordinals, "of", collapse spaces
-    String normalized = rawDate.replaceAll("(?i)(?<=\\d)(st|nd|rd|th)\\b", "").trim();
-    normalized = normalized.replaceAll("(?i)\\bof\\b", "").trim();
-    normalized = normalized.replaceAll("\\s+", " ").trim();
+     * Returns a valid MonthDay, rolling over to next month's 1st if the day
+     * exceeds the month's maximum (e.g. April 31 → May 1).
+     */
+    private static MonthDay resolveMonthDay(Month month, int day) {
+        int maxDay = month.maxLength(); // maxLength accounts for leap year (Feb → 29)
 
-    // Day-only input e.g. "30", "5", "21" → assume current month
-    if (normalized.matches("\\d{1,2}")) {
-        int day   = Integer.parseInt(normalized);
-        int month = baseDate.getMonthValue();
-        return new int[]{month, day};
-    }
+        if (day <= maxDay) {
+            return MonthDay.of(month, day);
+        }
 
-    // Full month+day input e.g. "9 Oct", "17 April"
-    try {
-        var ta    = PARTIAL_DATE_FORMATTER.parse(normalized);
-        int month = ta.get(ChronoField.MONTH_OF_YEAR);
-        int day   = ta.get(ChronoField.DAY_OF_MONTH);
-        return new int[]{month, day};
-    } catch (Exception e) {
-        throw new IllegalArgumentException(
-            "Unable to parse partial date: '" + rawDate + "'"
-        );
+        // Day exceeds month's max → roll over to 1st of next month
+        Month nextMonth = month.plus(1); // wraps Dec → Jan automatically
+        //log.warn("Date {}/{} is invalid, rolling over to {}/1", day, month, nextMonth);
+        return MonthDay.of(nextMonth, 1);
     }
-}
 
     /**
      * Finds the occurrence of the MonthDay that falls within the 
