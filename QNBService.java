@@ -96,28 +96,35 @@ public class QNBService {
     }
 
 private static MonthDay parsePartialDate(String rawDate) {
-        // Remove ordinal suffixes: "17th" → "17"
-        String normalized = rawDate.replaceAll("(?i)(?<=\\d)(st|nd|rd|th)\\b", "").trim();
-
-        // Remove "of": "17 of April" → "17 April"
-        normalized = normalized.replaceAll("(?i)\\bof\\b", "").trim();
-
-        // Collapse multiple spaces into one
-        normalized = normalized.replaceAll("\\s+", " ").trim();
-
+        if (rawDate == null || rawDate.isBlank()) {
+            //log.error("Null or blank date input");
+            return null;
+        }
+        String normalized = normalize(rawDate);
         try {
-            // If only a day number remains (no month), use current month
             if (normalized.matches("\\d{1,2}")) {
                 int day = Integer.parseInt(normalized);
-                Month currentMonth = LocalDate.now().getMonth();
-                return resolveMonthDay(currentMonth, day);
+                if (day < 1 || day > 31) {
+                    //log.error("Day out of valid range: {}", day);
+                    return null;
+                }
+                return resolveMonthDay(LocalDate.now().getMonth(), day);
             }
+            if (normalized.matches("\\d+")) {
+               // log.error("Day number out of range: {}", normalized);
+                return null;
+            }
+            // Strip trailing year if present e.g. "15 May 2024"
+            normalized = normalized.replaceAll("\\b\\d{4}\\b", "").replaceAll("\\s+", " ").trim();
 
             TemporalAccessor accessor = PARTIAL_DATE_FORMATTERS.parse(normalized);
-            int day   = accessor.get(ChronoField.DAY_OF_MONTH);
+            int day     = accessor.get(ChronoField.DAY_OF_MONTH);
             Month month = Month.of(accessor.get(ChronoField.MONTH_OF_YEAR));
+            if (day < 1) {
+                //log.error("Invalid day parsed: {}", day);
+                return null;
+            }
             return resolveMonthDay(month, day);
-
         } catch (Exception ignored) {
             //log.error("Error parsing partial date {}", normalized, ignored);
             return null;
@@ -139,6 +146,14 @@ private static MonthDay parsePartialDate(String rawDate) {
         Month nextMonth = month.plus(1); // wraps Dec → Jan automatically
         //log.warn("Date {}/{} is invalid, rolling over to {}/1", day, month, nextMonth);
         return MonthDay.of(nextMonth, 1);
+    }
+
+    static String normalize(String rawDate) {
+        String n = rawDate.replaceAll("(?i)\\bthe\\b", "").trim();       // strip "the"
+        n = n.replaceAll("(?i)(?<=\\d)(st|nd|rd|th)\\b", "").trim();    // strip ordinals
+        n = n.replaceAll("(?i)\\bof\\b", "").trim();                     // strip "of"
+        n = n.replaceAll("\\s+", " ").trim();                            // collapse spaces
+        return n;
     }
 
     /**
