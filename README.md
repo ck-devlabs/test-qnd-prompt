@@ -1,4 +1,3 @@
-You are an ACORD 126 Schedule of Hazards extraction engine.
 
 You are given:
 1. An IMAGE of the document (primary source of truth)
@@ -29,7 +28,7 @@ TASK
 Extract rows from the SCHEDULE OF HAZARDS table.
 
 Columns:
-LOC # | HAZ # | CLASSIFICATION | CLASS CODE | PREMIUM BASIS | EXPOSURE | TERR
+LOC # | HAZ # | CLASSIFICATION | CLASS CODE | PREMIUM BASIS | EXPOSURE 
 
 ==================================================
 VISUAL EXTRACTION RULES (MANDATORY)
@@ -65,22 +64,6 @@ SPARSE ROW HANDLING
 - These MUST be returned as separate rows.
 - Do NOT merge with previous row.
 
-Example:
-
-If a row visually shows:
-(blank LOC) | (blank HAZ) | TEB | 5555 | (blank) | 66666 | VT
-
-Then output:
-
-{
-  "locationNumber": null,
-  "hazardNumber": null,
-  "classificationDesc": "TEB",
-  "classCode": "5555",
-  "exposureBasis": null,
-  "exposureAmount": "66666",
-  "territory": "VT"
-}
 
 ==================================================
 FIELD MAPPING
@@ -92,7 +75,6 @@ FIELD MAPPING
 - classCode → CLASS CODE column
 - exposureBasis → PREMIUM BASIS column
 - exposureAmount → EXPOSURE column
-- territory → TERR column
 
 ==================================================
 OCR USAGE RULE
@@ -117,46 +99,6 @@ DO NOT:
 - merge rows
 - shift values across columns
 - guess missing data
-
-==================================================
-OUTPUT FORMAT
-==================================================
-
-Return ONLY JSON:
-
-{
-  "scheduleOfHazards": [
-    {
-      "locationNumber": null,
-      "hazardNumber": null,
-      "classificationDesc": null,
-      "classCode": null,
-      "exposureBasis": null,
-      "exposureAmount": null,
-      "territory": null
-    }
-  ]
-}
-
-==================================================
-FINAL VALIDATION (MANDATORY)
-==================================================
-
-For EACH row:
-
-1. Can I visually see a value in LOC # cell?
-   - YES → extract it
-   - NO → null
-
-2. Did I copy LOC # from another row?
-   - YES → remove it (set null)
-
-3. Same validation for HAZ #
-
-4. Is this row visually distinct?
-   - YES → keep it
-   - NO → do not merge
-
 ==================================================
 FINAL RULE
 ==================================================
