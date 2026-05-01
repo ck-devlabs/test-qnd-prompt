@@ -1,1 +1,1 @@
-Do not create a locations[] object unless at least one required location field has an explicitly visible value in the PDF; required attributes apply only after a valid non-empty location object is created.
+
