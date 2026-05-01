@@ -1,2 +1,3 @@
+FINAL LOCATIONS FILTER: Before returning JSON, remove any locations[] object where locationNumber, buildingNumber, street, city, state, and postalCode are all null, empty string, whitespace, or not explicitly visible in the PDF.
 
-If a PREMISES INFORMATION block contains no explicitly visible values for LOC #, BLD #, street, city, state, or ZIP, DO NOT create a locations entry for that block.
+Use null for missing values; never create a locations[] object only to hold null/empty fields.
