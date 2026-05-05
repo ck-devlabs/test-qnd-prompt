@@ -93,6 +93,14 @@ FIELD MAPPING
   - city
   - state
   - postalCode
+ 
+===============ROW ANCHOR RULE (CRITICAL)
+
+For this table, a row is NOT defined by LOC # or BLDG #.
+A row is defined by each repeated DESCRIPTION OF PROPERTY / ADDRESS OF PROPERTY block.
+Every visible DESCRIPTION/ADDRESS block must create one JSON entry in the same top-to-bottom order.
+Even if LOC # = "" and BLDG # = "", return the row when DESCRIPTION or ADDRESS text exists.
+Do NOT use LOC # or BLDG # as the condition for whether a row exists.
 
 ============================================================
 OCR USAGE RULE
