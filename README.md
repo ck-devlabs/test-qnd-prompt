@@ -37,7 +37,7 @@ CRITICAL ANTI-PROPAGATION RULE
 SPARSE ROW HANDLING
 ============================================================
 
-- Rows may have empty LOC # and BLDG # but valid address or description.
+
 - These MUST be returned as separate rows.
 - DO NOT merge with previous row.
 
@@ -65,6 +65,22 @@ For EACH ROW in the table:
 
 - Return an entry for every valid row.
 - Skip ONLY rows where ALL fields are blank.
+
+ABSOLUTE CELL-ONLY EXTRACTION RULE
+
+For LOC # and BLDG #, extract ONLY the text physically printed inside that exact row’s own LOC # and BLDG # cells.
+
+Ignore visual grouping, repeated section meaning, business meaning, and previous/next rows.
+
+A blank LOC # cell MUST return locationNumber = "".
+A blank BLDG # cell MUST return buildingNumber = "".
+
+Example:
+If the visible row has address text but its LOC # cell is blank and its BLDG # cell is blank, return:
+locationNumber = ""
+buildingNumber = ""
+
+Do not infer, copy, inherit, normalize, or propagate LOC # or BLDG # under any circumstance.
 
 ============================================================
 FIELD MAPPING
