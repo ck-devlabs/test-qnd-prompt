@@ -382,7 +382,7 @@ private String cleanAddress(String value) {
 
 
 
-    /**
+     /**
      * Main entry point.
      * Combines all tables + raw text (non-table content) into a single
      * GPT-ready prompt string.
@@ -482,5 +482,89 @@ private String cleanAddress(String value) {
  
         return sb.toString();
     }
+ 
+    /**
+     * Builds the full GPT system prompt.
+     * Pair this with buildGptInput() as the user message.
+     *
+     * @return System prompt string for GPT
+     */
+    public static String buildSystemPrompt() {
+        return """
+                You are an insurance form data extraction assistant.
+                You will receive content extracted from insurance forms via Azure Document Intelligence.
+                The content has two sections:
+                  1. FORM HEADER / NON-TABLE FIELDS - raw text from headers and non-table regions
+                  2. TABLES - one or more Markdown-formatted tables (empty cells are blank between pipes)
+                
+                Your task:
+                - Extract ALL fields from the header section into a flat JSON object called "headerFields"
+                - Extract ALL tables into a JSON array called "tables"
+                  - Each table has a "tableIndex" (1-based) and a "rows" array
+                  - Each row is a JSON object where keys are the column headers (camelCase)
+                  - IMPORTANT: Preserve empty string "" for ALL blank cells — do NOT skip them
+                  - If no clear header row exists, use keys: col_0, col_1, col_2, etc.
+                
+                ADDRESS PARSING RULES (apply to every table row):
+                - Insurance forms often spread an address across multiple lines within the same cell,
+                  or across adjacent rows. Reconstruct the full address and split it into:
+                    "street"  - street number and name (e.g. "15565 County Rd #517")
+                    "city"    - city name (e.g. "Dexter")
+                    "state"   - 2-letter state code (e.g. "MO")
+                    "zip"     - ZIP or ZIP+4 code (e.g. "63841")
+                - If any address component cannot be determined, use "".
+                - "locationNumber" maps to the LOC # column (or equivalent). Use "" if blank.
+                - "buildingNumber" maps to the BLDG # column (or equivalent). Use "" if blank.
+                - These five fields MUST appear in every row regardless of form layout:
+                    locationNumber, buildingNumber, street, city, state, zip
+                
+                - Return ONLY valid JSON. No explanation, no markdown code fences, no preamble.
+                
+                Expected output format:
+                {
+                  "headerFields": {
+                    "agency": "3200057",
+                    "contactName": "Test",
+                    "policyNumber": ""
+                  },
+                  "tables": [
+                    {
+                      "tableIndex": 1,
+                      "rows": [
+                        {
+                          "classCode": "8585",
+                          "locationNumber": "1",
+                          "buildingNumber": "1",
+                          "descriptionOfProperty": "personal property",
+                          "street": "15565 County Rd #517",
+                          "city": "Dexter",
+                          "state": "MO",
+                          "zip": "63841",
+                          "valuation": "test",
+                          "subject": "testing",
+                          "100Values": "2",
+                          "rateOrLossCost": "",
+                          "premium": "1000"
+                        },
+                        {
+                          "classCode": "",
+                          "locationNumber": "1",
+                          "buildingNumber": "2",
+                          "descriptionOfProperty": "personal property",
+                          "street": "15565 County Rd #517",
+                          "city": "Dexter",
+                          "state": "MO",
+                          "zip": "63841",
+                          "valuation": "te",
+                          "subject": "",
+                          "100Values": "",
+                          "rateOrLossCost": "",
+                          "premium": ""
+                        }
+                      ]
+                    }
+                  ]
+                }
+                """;
     
 }
