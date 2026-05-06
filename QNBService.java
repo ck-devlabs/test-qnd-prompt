@@ -242,7 +242,7 @@ private static MonthDay parsePartialDate(String rawDate) {
                 .merge(col, value, (a, b) -> a + "\n" + b);
     }
 
-    // Step 2: Detect header row + columns dynamically
+    // Step 2: Detect columns dynamically
     int headerRow = -1;
     Integer locCol = null;
     Integer bldgCol = null;
@@ -281,8 +281,9 @@ private static MonthDay parsePartialDate(String rawDate) {
         throw new IllegalStateException("Could not detect required columns");
     }
 
-    // Step 3: Block-based parsing
-    List<LocationDto> results = new ArrayList<>();
+    ObjectMapper mapper = new ObjectMapper();
+    ObjectNode root = mapper.createObjectNode();
+    ArrayNode locationsArray = mapper.createArrayNode();
 
     String currentLoc = null;
     String currentBldg = null;
@@ -307,18 +308,16 @@ private static MonthDay parsePartialDate(String rawDate) {
             continue;
         }
 
-        // ✅ CRITICAL: start new record ONLY when BOTH present
         boolean isStartRow = !loc.isBlank() && !bldg.isBlank();
 
         if (isStartRow) {
 
-            // flush previous record
             if (currentLoc != null) {
-                results.add(new LocationDto(
-                        currentLoc,
-                        currentBldg,
-                        cleanAddress(addressBuffer.toString())
-                ));
+                ObjectNode obj = mapper.createObjectNode();
+                obj.put("locationNumber", currentLoc);
+                obj.put("buildingNumber", currentBldg);
+                obj.put("address", cleanAddress(addressBuffer.toString()));
+                locationsArray.add(obj);
             }
 
             currentLoc = loc;
@@ -326,7 +325,6 @@ private static MonthDay parsePartialDate(String rawDate) {
             addressBuffer = new StringBuilder();
         }
 
-        // accumulate address lines
         if (currentLoc != null && !desc.isBlank()) {
             addressBuffer.append(desc).append(" ");
         }
@@ -334,14 +332,16 @@ private static MonthDay parsePartialDate(String rawDate) {
 
     // flush last record
     if (currentLoc != null) {
-        results.add(new LocationDto(
-                currentLoc,
-                currentBldg,
-                cleanAddress(addressBuffer.toString())
-        ));
+        ObjectNode obj = mapper.createObjectNode();
+        obj.put("locationNumber", currentLoc);
+        obj.put("buildingNumber", currentBldg);
+        obj.put("address", cleanAddress(addressBuffer.toString()));
+        locationsArray.add(obj);
     }
 
-    return results;
+    root.set("locations", locationsArray);
+
+    return mapper.writerWithDefaultPrettyPrinter().writeValueAsString(root);
 }
 
     public class LocationDto {
