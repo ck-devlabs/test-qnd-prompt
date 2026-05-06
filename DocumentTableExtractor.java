@@ -331,6 +331,11 @@ public class DocumentTableExtractor {
                 - Do NOT emit Row B as a separate record in the output
                 - If a row has no paired address row below it, leave street/city/state/zip as ""
                 - Apply the ROW INCLUSION RULES above to the merged logical record, not to the individual raw rows
+
+                - A row is a valid Row A if ANY non-address business field is present, including property description, class/description, valuation, subject, or value fields. LOC # and BLDG # are optional fields and must NOT be required to decide whether a logical record exists.
+
+                - If a row has blank LOC # and blank BLDG # but contains a property description such as "personal property" or "Commercial property", treat it as Row A and pair it with the address-only row immediately below it. Return locationNumber="" and buildingNumber="".
+
  
                 LOCATION AND BUILDING NUMBER RULES:
                 - "locationNumber" maps to the LOC # column (also written as "Loc #", "Location #", "Loc No", or equivalent)
