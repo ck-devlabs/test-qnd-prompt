@@ -374,5 +374,113 @@ private String cleanAddress(String value) {
             .replaceAll("\\s+", " ")
             .trim();
 }
+
+
+
+
+
+
+
+
+    /**
+     * Main entry point.
+     * Combines all tables + raw text (non-table content) into a single
+     * GPT-ready prompt string.
+     *
+     * @param result  AnalyzeResult from Azure Document Intelligence poller.getFinalResult()
+     * @return        A formatted string ready to be sent to GPT
+     */
+    public static String buildGptInput(AnalyzeResult result) {
+        StringBuilder sb = new StringBuilder();
+ 
+        // --- Section 1: Raw text for header/non-table fields ---
+        sb.append("=== FORM HEADER / NON-TABLE FIELDS ===\n");
+        if (result.getContent() != null && !result.getContent().isBlank()) {
+            sb.append(result.getContent().trim());
+        } else {
+            sb.append("(none)");
+        }
+        sb.append("\n\n");
+ 
+        // --- Section 2: Tables in Markdown format ---
+        List<DocumentTable> tables = result.getTables();
+        if (tables == null || tables.isEmpty()) {
+            sb.append("=== TABLES ===\n(no tables found)\n");
+        } else {
+            sb.append("=== TABLES ===\n");
+            for (int i = 0; i < tables.size(); i++) {
+                sb.append("TABLE ").append(i + 1).append(":\n");
+                sb.append(tableToMarkdown(tables.get(i)));
+                sb.append("\n");
+            }
+        }
+ 
+        return sb.toString();
+    }
+ 
+    /**
+     * Converts a single DocumentTable into a Markdown table string.
+     * Empty cells are preserved as blank (between pipes), which is
+     * critical so GPT doesn't skip or hallucinate missing fields.
+     *
+     * @param table  DocumentTable from AnalyzeResult
+     * @return       Markdown-formatted table string
+     */
+    public static String tableToMarkdown(DocumentTable table) {
+        int rowCount = table.getRowCount();
+        int colCount = table.getColumnCount();
+ 
+        // Pre-fill grid with empty strings — this ensures blank cells are explicit
+        String[][] grid = new String[rowCount][colCount];
+        for (String[] row : grid) {
+            Arrays.fill(row, "");
+        }
+ 
+        // Fill in values from DocumentTableCell
+        for (DocumentTableCell cell : table.getCells()) {
+            int row = cell.getRowIndex();
+            int col = cell.getColumnIndex();
+ 
+            // Bounds check (defensive)
+            if (row < rowCount && col < colCount) {
+                String content = cell.getContent();
+                grid[row][col] = (content != null) ? content.trim() : "";
+            }
+        }
+ 
+        return gridToMarkdown(grid);
+    }
+ 
+    /**
+     * Converts a 2D String grid to a Markdown table.
+     * Row 0 is treated as the header row.
+     *
+     * @param grid  2D array of cell values
+     * @return      Markdown table string
+     */
+    private static String gridToMarkdown(String[][] grid) {
+        if (grid.length == 0) return "(empty table)\n";
+ 
+        StringBuilder sb = new StringBuilder();
+ 
+        for (int r = 0; r < grid.length; r++) {
+            // Build row
+            sb.append("| ");
+            sb.append(String.join(" | ", grid[r]));
+            sb.append(" |\n");
+ 
+            // Add separator line after header row (row 0)
+            if (r == 0) {
+                sb.append("| ");
+                for (int c = 0; c < grid[r].length; c++) {
+                    sb.append("--- |");
+                    if (c < grid[r].length - 1) sb.append(" ");
+                }
+                sb.append("\n");
+            }
+        }
+ 
+        return sb.toString();
+    }
     
 }
