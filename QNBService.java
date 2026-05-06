@@ -226,51 +226,121 @@ private static MonthDay parsePartialDate(String rawDate) {
 
     Map<Integer, Map<Integer, String>> rows = new TreeMap<>();
 
+    // Step 1: Build row → column map
     for (DocumentCell cell : table.getCells()) {
-        int row = cell.getRowIndex();
-        int col = cell.getColumnIndex();
-        String text = cell.getContent() == null ? "" : cell.getContent().trim();
 
-        rows.computeIfAbsent(row, r -> new TreeMap<>())
-            .merge(col, text, (a, b) -> a + "\n" + b);
-    }
-
-    int locCol = 1;      // replace with detected column
-    int bldgCol = 2;
-    int addrCol = 3;
-
-    ObjectMapper mapper = new ObjectMapper();
-    ObjectNode root = mapper.createObjectNode();
-    ArrayNode arr = mapper.createArrayNode();
-
-    for (Map.Entry<Integer, Map<Integer, String>> e : rows.entrySet()) {
-
-        int rowIndex = e.getKey();
-
-        // skip header rows
-        if (rowIndex <= 1) continue;
-
-        Map<Integer, String> cols = e.getValue();
-
-        String loc = cols.getOrDefault(locCol, "").trim();
-        String bldg = cols.getOrDefault(bldgCol, "").trim();
-        String addr = cols.getOrDefault(addrCol, "").trim();
-
-        if (loc.isBlank() && bldg.isBlank() && addr.isBlank()) {
+        if (cell.getRowIndex() == null || cell.getColumnIndex() == null) {
             continue;
         }
 
-        ObjectNode rowNode = mapper.createObjectNode();
-        rowNode.put("rowIndex", rowIndex);
-        rowNode.put("locationNumber", loc);
-        rowNode.put("buildingNumber", bldg);
-        rowNode.put("rawAddress", addr);
+        int row = cell.getRowIndex();
+        int col = cell.getColumnIndex();
 
-        arr.add(rowNode);
+        String value = cell.getContent() == null ? "" : cell.getContent().trim();
+
+        rows.computeIfAbsent(row, r -> new TreeMap<>())
+                .merge(col, value, (a, b) -> a + "\n" + b);
     }
 
-    root.set("rows", arr);
+    // Step 2: Detect header row + columns dynamically
+    int headerRow = -1;
+    Integer locCol = null;
+    Integer bldgCol = null;
+    Integer descCol = null;
 
-    return mapper.writerWithDefaultPrettyPrinter().writeValueAsString(root);
+    for (Map.Entry<Integer, Map<Integer, String>> entry : rows.entrySet()) {
+
+        int rowIndex = entry.getKey();
+
+        for (Map.Entry<Integer, String> colEntry : entry.getValue().entrySet()) {
+
+            String text = normalize(colEntry.getValue());
+
+            if (text.contains("LOC")) {
+                locCol = colEntry.getKey();
+                headerRow = rowIndex;
+            }
+
+            if (text.contains("BLDG")) {
+                bldgCol = colEntry.getKey();
+                headerRow = rowIndex;
+            }
+
+            if (text.contains("DESCRIPTION")) {
+                descCol = colEntry.getKey();
+                headerRow = rowIndex;
+            }
+        }
+
+        if (locCol != null && bldgCol != null && descCol != null) {
+            break;
+        }
+    }
+
+    if (locCol == null || bldgCol == null || descCol == null) {
+        throw new IllegalStateException("Could not detect required columns");
+    }
+
+    // Step 3: Block-based parsing
+    List<LocationDto> results = new ArrayList<>();
+
+    String currentLoc = null;
+    String currentBldg = null;
+    StringBuilder addressBuffer = new StringBuilder();
+
+    for (Map.Entry<Integer, Map<Integer, String>> entry : rows.entrySet()) {
+
+        int rowIndex = entry.getKey();
+
+        if (rowIndex <= headerRow) {
+            continue;
+        }
+
+        Map<Integer, String> cols = entry.getValue();
+
+        String loc = cols.getOrDefault(locCol, "").trim();
+        String bldg = cols.getOrDefault(bldgCol, "").trim();
+        String desc = normalize(cols.getOrDefault(descCol, ""));
+
+        // Skip label rows
+        if (desc.equalsIgnoreCase("ADDRESS OF PROPERTY")) {
+            continue;
+        }
+
+        // ✅ CRITICAL: start new record ONLY when BOTH present
+        boolean isStartRow = !loc.isBlank() && !bldg.isBlank();
+
+        if (isStartRow) {
+
+            // flush previous record
+            if (currentLoc != null) {
+                results.add(new LocationDto(
+                        currentLoc,
+                        currentBldg,
+                        cleanAddress(addressBuffer.toString())
+                ));
+            }
+
+            currentLoc = loc;
+            currentBldg = bldg;
+            addressBuffer = new StringBuilder();
+        }
+
+        // accumulate address lines
+        if (currentLoc != null && !desc.isBlank()) {
+            addressBuffer.append(desc).append(" ");
+        }
+    }
+
+    // flush last record
+    if (currentLoc != null) {
+        results.add(new LocationDto(
+                currentLoc,
+                currentBldg,
+                cleanAddress(addressBuffer.toString())
+        ));
+    }
+
+    return results;
 }
 }
