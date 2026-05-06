@@ -220,4 +220,57 @@ private static MonthDay parsePartialDate(String rawDate) {
 
         return objectNode;
     }
+
+
+    public String buildRowsJson(DocumentTable table) throws Exception {
+
+    Map<Integer, Map<Integer, String>> rows = new TreeMap<>();
+
+    for (DocumentCell cell : table.getCells()) {
+        int row = cell.getRowIndex();
+        int col = cell.getColumnIndex();
+        String text = cell.getContent() == null ? "" : cell.getContent().trim();
+
+        rows.computeIfAbsent(row, r -> new TreeMap<>())
+            .merge(col, text, (a, b) -> a + "\n" + b);
+    }
+
+    int locCol = 1;      // replace with detected column
+    int bldgCol = 2;
+    int addrCol = 3;
+
+    ObjectMapper mapper = new ObjectMapper();
+    ObjectNode root = mapper.createObjectNode();
+    ArrayNode arr = mapper.createArrayNode();
+
+    for (Map.Entry<Integer, Map<Integer, String>> e : rows.entrySet()) {
+
+        int rowIndex = e.getKey();
+
+        // skip header rows
+        if (rowIndex <= 1) continue;
+
+        Map<Integer, String> cols = e.getValue();
+
+        String loc = cols.getOrDefault(locCol, "").trim();
+        String bldg = cols.getOrDefault(bldgCol, "").trim();
+        String addr = cols.getOrDefault(addrCol, "").trim();
+
+        if (loc.isBlank() && bldg.isBlank() && addr.isBlank()) {
+            continue;
+        }
+
+        ObjectNode rowNode = mapper.createObjectNode();
+        rowNode.put("rowIndex", rowIndex);
+        rowNode.put("locationNumber", loc);
+        rowNode.put("buildingNumber", bldg);
+        rowNode.put("rawAddress", addr);
+
+        arr.add(rowNode);
+    }
+
+    root.set("rows", arr);
+
+    return mapper.writerWithDefaultPrettyPrinter().writeValueAsString(root);
+}
 }
