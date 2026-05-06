@@ -343,4 +343,36 @@ private static MonthDay parsePartialDate(String rawDate) {
 
     return results;
 }
+
+    public class LocationDto {
+    private String locationNumber;
+    private String buildingNumber;
+    private String address;
+
+    public LocationDto(String locationNumber, String buildingNumber, String address) {
+        this.locationNumber = locationNumber;
+        this.buildingNumber = buildingNumber;
+        this.address = address;
+    }
+
+    // getters/setters
+}
+
+    private String normalize(String value) {
+    if (value == null) return "";
+    return value
+            .toUpperCase()
+            .replace("\n", " ")
+            .replaceAll("\\s+", " ")
+            .trim();
+}
+
+private String cleanAddress(String value) {
+    if (value == null) return "";
+    return value
+            .replace("\n", " ")
+            .replaceAll("\\s+", " ")
+            .trim();
+}
+    
 }
