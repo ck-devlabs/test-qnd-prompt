@@ -382,13 +382,13 @@ private String cleanAddress(String value) {
 
 
 
-     /**
+    /**
      * Main entry point.
      * Combines all tables + raw text (non-table content) into a single
-     * GPT-ready prompt string.
+     * GPT-ready user message string.
      *
      * @param result  AnalyzeResult from Azure Document Intelligence poller.getFinalResult()
-     * @return        A formatted string ready to be sent to GPT
+     * @return        A formatted string ready to be sent to GPT as the user message
      */
     public static String buildGptInput(AnalyzeResult result) {
         StringBuilder sb = new StringBuilder();
@@ -421,7 +421,7 @@ private String cleanAddress(String value) {
     /**
      * Converts a single DocumentTable into a Markdown table string.
      * Empty cells are preserved as blank (between pipes), which is
-     * critical so GPT doesn't skip or hallucinate missing fields.
+     * critical so GPT does not skip or hallucinate missing fields.
      *
      * @param table  DocumentTable from AnalyzeResult
      * @return       Markdown-formatted table string
@@ -430,7 +430,7 @@ private String cleanAddress(String value) {
         int rowCount = table.getRowCount();
         int colCount = table.getColumnCount();
  
-        // Pre-fill grid with empty strings — this ensures blank cells are explicit
+        // Pre-fill grid with empty strings — ensures blank cells are explicit
         String[][] grid = new String[rowCount][colCount];
         for (String[] row : grid) {
             Arrays.fill(row, "");
@@ -484,7 +484,10 @@ private String cleanAddress(String value) {
     }
  
     /**
-     * Builds the full GPT system prompt.
+     * Builds the GPT system prompt.
+     * Focuses purely on extraction rules — output structure and schema
+     * are enforced separately via OpenAI responseFormat / JSON schema.
+     *
      * Pair this with buildGptInput() as the user message.
      *
      * @return System prompt string for GPT
@@ -496,75 +499,31 @@ private String cleanAddress(String value) {
                 The content has two sections:
                   1. FORM HEADER / NON-TABLE FIELDS - raw text from headers and non-table regions
                   2. TABLES - one or more Markdown-formatted tables (empty cells are blank between pipes)
-                
-                Your task:
-                - Extract ALL fields from the header section into a flat JSON object called "headerFields"
-                - Extract ALL tables into a JSON array called "tables"
-                  - Each table has a "tableIndex" (1-based) and a "rows" array
-                  - Each row is a JSON object where keys are the column headers (camelCase)
-                  - IMPORTANT: Preserve empty string "" for ALL blank cells — do NOT skip them
-                  - If no clear header row exists, use keys: col_0, col_1, col_2, etc.
-                
-                ADDRESS PARSING RULES (apply to every table row):
-                - Insurance forms often spread an address across multiple lines within the same cell,
-                  or across adjacent rows. Reconstruct the full address and split it into:
-                    "street"  - street number and name (e.g. "15565 County Rd #517")
-                    "city"    - city name (e.g. "Dexter")
-                    "state"   - 2-letter state code (e.g. "MO")
-                    "zip"     - ZIP or ZIP+4 code (e.g. "63841")
-                - If any address component cannot be determined, use "".
-                - "locationNumber" maps to the LOC # column (or equivalent). Use "" if blank.
-                - "buildingNumber" maps to the BLDG # column (or equivalent). Use "" if blank.
-                - These five fields MUST appear in every row regardless of form layout:
-                    locationNumber, buildingNumber, street, city, state, zip
-                
-                - Return ONLY valid JSON. No explanation, no markdown code fences, no preamble.
-                
-                Expected output format:
-                {
-                  "headerFields": {
-                    "agency": "3200057",
-                    "contactName": "Test",
-                    "policyNumber": ""
-                  },
-                  "tables": [
-                    {
-                      "tableIndex": 1,
-                      "rows": [
-                        {
-                          "classCode": "8585",
-                          "locationNumber": "1",
-                          "buildingNumber": "1",
-                          "descriptionOfProperty": "personal property",
-                          "street": "15565 County Rd #517",
-                          "city": "Dexter",
-                          "state": "MO",
-                          "zip": "63841",
-                          "valuation": "test",
-                          "subject": "testing",
-                          "100Values": "2",
-                          "rateOrLossCost": "",
-                          "premium": "1000"
-                        },
-                        {
-                          "classCode": "",
-                          "locationNumber": "1",
-                          "buildingNumber": "2",
-                          "descriptionOfProperty": "personal property",
-                          "street": "15565 County Rd #517",
-                          "city": "Dexter",
-                          "state": "MO",
-                          "zip": "63841",
-                          "valuation": "te",
-                          "subject": "",
-                          "100Values": "",
-                          "rateOrLossCost": "",
-                          "premium": ""
-                        }
-                      ]
-                    }
-                  ]
-                }
+ 
+                GENERAL EXTRACTION RULES:
+                - Extract ALL fields from the header section into headerFields
+                - Extract ALL tables, preserving every row and column
+                - Preserve empty string "" for ALL blank cells — do NOT skip or omit them
+                - If no clear header row exists, use column keys: col_0, col_1, col_2, etc.
+ 
+                LOCATION AND BUILDING NUMBER RULES:
+                - "locationNumber" maps to the LOC # column (also written as "Loc #", "Location #", "Loc No", or equivalent)
+                - "buildingNumber" maps to the BLDG # column (also written as "Bldg #", "Building #", "Bldg No", or equivalent)
+                - If a locationNumber or buildingNumber cell is blank, inherit the last non-blank value
+                  seen above it in the same table column — do NOT leave it blank if a prior row had a value
+                - If no value exists anywhere in the column, use ""
+ 
+                ADDRESS PARSING RULES:
+                - Insurance forms often spread an address across multiple lines within a single cell
+                  or across consecutive rows in the same column. Reconstruct and parse into:
+                    street  - street number and name only (e.g. "15565 County Rd #517")
+                    city    - city name only (e.g. "Dexter")
+                    state   - 2-letter state code only (e.g. "MO")
+                    zip     - ZIP or ZIP+4 code only (e.g. "63841")
+                - If any address component cannot be determined, use ""
+                - Address fields must be extracted independently per row from that row's own cell content.
+                  Do NOT carry over an address from a previous row if the current row's address cell is blank.
                 """;
+    }
     
 }
