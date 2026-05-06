@@ -311,31 +311,39 @@ public class DocumentTableExtractor {
                 The content has two sections:
                   1. FORM HEADER / NON-TABLE FIELDS - raw text from headers and non-table regions
                   2. TABLES - one or more Markdown-formatted tables (empty cells are blank between pipes)
-
+ 
                 GENERAL EXTRACTION RULES:
                 - Extract ALL fields from the header section into headerFields
-                - Extract ALL rows from every table — including rows where every cell is blank
-                - A blank row is a valid record and must appear in the output with all fields as ""
-                - Preserve empty string "" for ALL blank cells — do NOT skip or omit any row or cell
+                - Extract ALL logical records from every table — do NOT skip any row
+                - Preserve empty string "" for ALL blank fields — do NOT omit any field
                 - If no clear header row exists, use column keys: col_0, col_1, col_2, etc.
-
+ 
+                ROW PAIRING RULES:
+                - Many insurance forms render each logical record across TWO consecutive Markdown rows:
+                    Row A: contains CLASS CODE, LOC #, BLDG #, property description, and value fields
+                    Row B: contains ONLY the property address in the description column; all other cells blank
+                - Treat Row A and Row B together as ONE logical record
+                - Extract the address from Row B and parse it into street, city, state, zip for that record
+                - Do NOT emit Row B as a separate record in the output
+                - If a row has no paired address row below it, leave street/city/state/zip as ""
+                - A truly blank row (all cells empty, no address content) is still a valid record
+                  and must appear in the output with all fields as ""
+ 
                 LOCATION AND BUILDING NUMBER RULES:
                 - "locationNumber" maps to the LOC # column (also written as "Loc #", "Location #", "Loc No", or equivalent)
                 - "buildingNumber" maps to the BLDG # column (also written as "Bldg #", "Building #", "Bldg No", or equivalent)
-                - If a locationNumber or buildingNumber cell is blank, inherit the last non-blank value
-                  seen above it in the same table column — do NOT leave it blank if a prior row had a value
+                - If locationNumber or buildingNumber is blank, inherit the last non-blank value
+                  seen above it in the same column — do NOT leave it blank if a prior record had a value
                 - If no value exists anywhere in the column, use ""
-
+ 
                 ADDRESS PARSING RULES:
-                - Each record's description cell may contain multiple lines — the first line is the
-                  property description, subsequent lines are the address. For example:
-                    "personal property\\n15565 County Rd #517\\nDexter MO 63841"
-                  Parse the address lines into:
+                - Reconstruct the address from Row B and split into:
                     street  - street number and name only (e.g. "15565 County Rd #517")
                     city    - city name only (e.g. "Dexter")
                     state   - 2-letter state code only (e.g. "MO")
                     zip     - ZIP or ZIP+4 code only (e.g. "63841")
-                - If any address component cannot be determined, use ""
+                - If any component cannot be determined, use ""
+                - Do NOT carry over an address from a previous record if the current record has no address row
                 """;
     }
 
