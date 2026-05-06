@@ -314,9 +314,13 @@ public class DocumentTableExtractor {
  
                 GENERAL EXTRACTION RULES:
                 - Extract ALL fields from the header section into headerFields
-                - Extract ALL logical records from every table — do NOT skip any row
-                - Preserve empty string "" for ALL blank fields — do NOT omit any field
+                - Preserve empty string "" for ALL blank fields within a valid record — do NOT omit any field
                 - If no clear header row exists, use column keys: col_0, col_1, col_2, etc.
+ 
+                ROW INCLUSION RULES:
+                - Only include a row in the output if at least one of its cells has a non-blank value
+                - If every cell in a row is blank (after row pairing is applied), skip that row entirely — do NOT emit it
+                - If every data row in a table is blank, skip the entire table — do NOT emit it
  
                 ROW PAIRING RULES:
                 - Many insurance forms render each logical record across TWO consecutive Markdown rows:
@@ -326,8 +330,7 @@ public class DocumentTableExtractor {
                 - Extract the address from Row B and parse it into street, city, state, zip for that record
                 - Do NOT emit Row B as a separate record in the output
                 - If a row has no paired address row below it, leave street/city/state/zip as ""
-                - A truly blank row (all cells empty, no address content) is still a valid record
-                  and must appear in the output with all fields as ""
+                - Apply the ROW INCLUSION RULES above to the merged logical record, not to the individual raw rows
  
                 LOCATION AND BUILDING NUMBER RULES:
                 - "locationNumber" maps to the LOC # column (also written as "Loc #", "Location #", "Loc No", or equivalent)
