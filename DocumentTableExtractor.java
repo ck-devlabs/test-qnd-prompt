@@ -335,9 +335,9 @@ public class DocumentTableExtractor {
                 LOCATION AND BUILDING NUMBER RULES:
                 - "locationNumber" maps to the LOC # column (also written as "Loc #", "Location #", "Loc No", or equivalent)
                 - "buildingNumber" maps to the BLDG # column (also written as "Bldg #", "Building #", "Bldg No", or equivalent)
-                - If locationNumber or buildingNumber is blank, inherit the last non-blank value
-                  seen above it in the same column — do NOT leave it blank if a prior record had a value
-                - If no value exists anywhere in the column, use ""
+                - Always use only the value present in that row's own cell
+                - Do NOT inherit or carry over values from any previous row for either field
+                - If the cell is blank, set the field to ""
  
                 ADDRESS PARSING RULES:
                 - Reconstruct the address from Row B and split into:
