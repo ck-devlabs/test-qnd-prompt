@@ -1,653 +1,904 @@
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.ObjectNode; // Added missing import
+package com.hanover.entp.dataext.config.async;
+
+import org.quartz.Scheduler;
+import org.quartz.spi.JobFactory;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.context.ApplicationContext;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Profile;
+import org.springframework.scheduling.quartz.SchedulerFactoryBean;
+import org.springframework.scheduling.quartz.SpringBeanJobFactory;
+
+import javax.sql.DataSource;
+import java.util.Properties;
+
+@Configuration
+@EnableAutoConfiguration
+public class QuartzSchedulerConfig {
+
+    /**
+     * Creates a {@link JobFactory} that integrates Quartz with Spring's ApplicationContext,
+     * allowing Quartz jobs to use Spring-managed beans.
+     *
+     * @param applicationContext the Spring application context
+     * @return a configured {@link JobFactory}
+     */
+    @Bean
+    public JobFactory jobFactory(ApplicationContext applicationContext) {
+        SpringBeanJobFactory factory = new SpringBeanJobFactory();
+        factory.setApplicationContext(applicationContext);
+        return factory;
+    }
+
+    // =========================================================
+    // EXTRACTION SCHEDULER
+    // =========================================================
+
+    /**
+     * Configures the {@link SchedulerFactoryBean} for the Extraction scheduler
+     * for non-test profiles (local, dev, int, uat, prod etc - anything that's not "test").
+     *
+     * @param quartzProps Quartz properties specific to the Extraction scheduler
+     * @param jobFactory  the custom job factory for Spring integration
+     * @param dataSource  the Quartz data source
+     * @return a configured {@link SchedulerFactoryBean} for Extraction jobs
+     */
+    @Bean(name = "extractionSchedulerFactory")
+    @Profile("!test")
+    public SchedulerFactoryBean extractionSchedulerFactory(
+            @Qualifier("extractionQuartzProperties") Properties quartzProps,
+            @Qualifier("jobFactory") JobFactory jobFactory,
+            DataSource dataSource) {
+
+        SchedulerFactoryBean extractionSchedulerFactory = new SchedulerFactoryBean();
+        extractionSchedulerFactory.setDataSource(dataSource);
+        extractionSchedulerFactory.setQuartzProperties(quartzProps);
+        extractionSchedulerFactory.setJobFactory(jobFactory);
+        return extractionSchedulerFactory;
+    }
+
+    /**
+     * Configures the {@link SchedulerFactoryBean} for the Extraction scheduler
+     * for "test" profile.
+     *
+     * @param quartzProps Quartz properties specific to the Extraction scheduler
+     * @param jobFactory  the custom job factory for Spring integration
+     * @return a configured {@link SchedulerFactoryBean} for Extraction jobs
+     */
+    @Bean(name = "extractionSchedulerFactory")
+    @Profile("test")
+    public SchedulerFactoryBean testExtractionSchedulerFactory(
+            @Qualifier("extractionQuartzProperties") Properties quartzProps,
+            @Qualifier("jobFactory") JobFactory jobFactory) {
+
+        SchedulerFactoryBean extractionSchedulerFactory = new SchedulerFactoryBean();
+        extractionSchedulerFactory.setQuartzProperties(quartzProps);
+        extractionSchedulerFactory.setJobFactory(jobFactory);
+        return extractionSchedulerFactory;
+    }
+
+    /**
+     * Creates a {@link Properties} bean populated with Quartz configuration settings
+     * for the Extraction scheduler using Spring Boot's {@link ConfigurationProperties} mechanism.
+     *
+     * <p>This method binds all properties defined under the prefix
+     * {@code spring.quartz.properties.extraction} in the application.properties
+     * {@link Properties} object. These properties are then used by the Quartz
+     * {@link org.springframework.scheduling.quartz.SchedulerFactoryBean} to configure
+     * the Extraction scheduler instance.</p>
+     *
+     * <h2>Example Configuration:</h2>
+     * <pre>
+     * spring.quartz.properties.extraction.org.quartz.scheduler.instanceName=ExtractionScheduler
+     * spring.quartz.properties.extraction.org.quartz.threadPool.threadCount=10
+     * </pre>
+     *
+     * @return a {@link Properties} object containing all Quartz properties for the Extraction scheduler
+     */
+    @ConfigurationProperties(prefix = "spring.quartz.properties.extraction")
+    @Bean
+    public Properties extractionQuartzProperties() {
+        return new Properties(); // Spring will populate this bean automatically
+    }
+
+    /**
+     * Exposes the Extraction {@link Scheduler} bean for job scheduling.
+     *
+     * @param factory the Extraction scheduler factory
+     * @return the {@link Scheduler} instance for Extraction jobs
+     * @throws Exception if the scheduler cannot be retrieved
+     */
+    @Bean(name = "extractionScheduler")
+    public Scheduler extractionScheduler(
+            @Qualifier("extractionSchedulerFactory") SchedulerFactoryBean factory)
+            throws Exception {
+        return factory.getScheduler();
+    }
+
+    // =========================================================
+    // DISPATCHER SCHEDULER
+    // =========================================================
+
+    /**
+     * Configures the {@link SchedulerFactoryBean} for the Dispatcher scheduler
+     * for non-test profiles (local, dev, int, uat, prod etc - anything that's not "test").
+     *
+     * @param quartzProps Quartz properties specific to the Dispatcher scheduler
+     * @param jobFactory  the custom job factory for Spring integration
+     * @param dataSource  the Quartz data source
+     * @return a configured {@link SchedulerFactoryBean} for Dispatcher jobs
+     */
+    @Bean(name = "dispatcherSchedulerFactory")
+    @Profile("!test")
+    public SchedulerFactoryBean dispatcherSchedulerFactory(
+            @Qualifier("dispatcherQuartzProperties") Properties quartzProps,
+            @Qualifier("jobFactory") JobFactory jobFactory,
+            DataSource dataSource) {
+
+        SchedulerFactoryBean dispatcherSchedulerFactory = new SchedulerFactoryBean();
+        dispatcherSchedulerFactory.setDataSource(dataSource);
+        dispatcherSchedulerFactory.setQuartzProperties(quartzProps);
+        dispatcherSchedulerFactory.setJobFactory(jobFactory);
+        return dispatcherSchedulerFactory;
+    }
+
+    /**
+     * Configures the {@link SchedulerFactoryBean} for the Dispatcher scheduler
+     * for "test" profile.
+     *
+     * @param quartzProps Quartz properties specific to the Dispatcher scheduler
+     * @param jobFactory  the custom job factory for Spring integration
+     * @return a configured {@link SchedulerFactoryBean} for Dispatcher jobs
+     */
+    @Bean(name = "dispatcherSchedulerFactory")
+    @Profile("test")
+    public SchedulerFactoryBean testDispatcherSchedulerFactory(
+            @Qualifier("dispatcherQuartzProperties") Properties quartzProps,
+            @Qualifier("jobFactory") JobFactory jobFactory) {
+
+        SchedulerFactoryBean dispatcherSchedulerFactory = new SchedulerFactoryBean();
+        dispatcherSchedulerFactory.setQuartzProperties(quartzProps);
+        dispatcherSchedulerFactory.setJobFactory(jobFactory);
+        return dispatcherSchedulerFactory;
+    }
+
+    /**
+     * Creates a {@link Properties} bean populated with Quartz configuration settings
+     * for the Dispatcher scheduler using Spring Boot's {@link ConfigurationProperties} mechanism.
+     *
+     * <h2>Example Configuration:</h2>
+     * <pre>
+     * spring.quartz.properties.dispatcher.org.quartz.scheduler.instanceName=DispatcherScheduler
+     * spring.quartz.properties.dispatcher.org.quartz.threadPool.threadCount=10
+     * </pre>
+     *
+     * @return a {@link Properties} object containing all Quartz properties for the Dispatcher scheduler
+     */
+    @ConfigurationProperties(prefix = "spring.quartz.properties.dispatcher")
+    @Bean
+    public Properties dispatcherQuartzProperties() {
+        return new Properties(); // Spring will populate this bean automatically
+    }
+
+    /**
+     * Exposes the Dispatcher {@link Scheduler} bean for job scheduling.
+     *
+     * @param factory the Dispatcher scheduler factory
+     * @return the {@link Scheduler} instance for Dispatcher jobs
+     * @throws Exception if the scheduler cannot be retrieved
+     */
+    @Bean(name = "dispatcherScheduler")
+    public Scheduler dispatcherScheduler(
+            @Qualifier("dispatcherSchedulerFactory") SchedulerFactoryBean factory)
+            throws Exception {
+        return factory.getScheduler();
+    }
+
+    // =========================================================
+    // INGESTION SCHEDULER
+    // =========================================================
+
+    /**
+     * Configures the {@link SchedulerFactoryBean} for the Ingestion scheduler
+     * for non-test profiles (local, dev, int, uat, prod etc - anything that's not "test").
+     *
+     * @param quartzProps Quartz properties specific to the Ingestion scheduler
+     * @param jobFactory  the custom job factory for Spring integration
+     * @param dataSource  the Quartz data source
+     * @return a configured {@link SchedulerFactoryBean} for Ingestion jobs
+     */
+    @Bean(name = "ingestionSchedulerFactory")
+    @Profile("!test")
+    public SchedulerFactoryBean ingestionSchedulerFactory(
+            @Qualifier("ingestionQuartzProperties") Properties quartzProps,
+            @Qualifier("jobFactory") JobFactory jobFactory,
+            DataSource dataSource) {
+
+        SchedulerFactoryBean ingestionSchedulerFactory = new SchedulerFactoryBean();
+        ingestionSchedulerFactory.setDataSource(dataSource);
+        ingestionSchedulerFactory.setQuartzProperties(quartzProps);
+        ingestionSchedulerFactory.setJobFactory(jobFactory);
+        return ingestionSchedulerFactory;
+    }
+
+    /**
+     * Configures the {@link SchedulerFactoryBean} for the Ingestion scheduler
+     * for "test" profile.
+     *
+     * @param quartzProps Quartz properties specific to the Ingestion scheduler
+     * @param jobFactory  the custom job factory for Spring integration
+     * @return a configured {@link SchedulerFactoryBean} for Ingestion jobs
+     */
+    @Bean(name = "ingestionSchedulerFactory")
+    @Profile("test")
+    public SchedulerFactoryBean testIngestionSchedulerFactory(
+            @Qualifier("ingestionQuartzProperties") Properties quartzProps,
+            @Qualifier("jobFactory") JobFactory jobFactory) {
+
+        SchedulerFactoryBean ingestionSchedulerFactory = new SchedulerFactoryBean();
+        ingestionSchedulerFactory.setQuartzProperties(quartzProps);
+        ingestionSchedulerFactory.setJobFactory(jobFactory);
+        return ingestionSchedulerFactory;
+    }
+
+    /**
+     * Creates a {@link Properties} bean populated with Quartz configuration settings
+     * for the Ingestion scheduler using Spring Boot's {@link ConfigurationProperties} mechanism.
+     *
+     * <p>This method binds all properties defined under the prefix
+     * {@code spring.quartz.properties.ingestion} in the application.properties
+     * {@link Properties} object. These properties are then used by the Quartz
+     * {@link org.springframework.scheduling.quartz.SchedulerFactoryBean} to configure
+     * the Ingestion scheduler instance.</p>
+     *
+     * <h2>Example Configuration:</h2>
+     * <pre>
+     * spring.quartz.properties.ingestion.org.quartz.scheduler.instanceName=IngestionScheduler
+     * spring.quartz.properties.ingestion.org.quartz.threadPool.threadCount=3
+     * </pre>
+     *
+     * @return a {@link Properties} object containing all Quartz properties for the Ingestion scheduler
+     */
+    @ConfigurationProperties(prefix = "spring.quartz.properties.ingestion")
+    @Bean
+    public Properties ingestionQuartzProperties() {
+        return new Properties(); // Spring will populate this bean automatically
+    }
+
+    /**
+     * Exposes the Ingestion {@link Scheduler} bean for job scheduling.
+     *
+     * @param factory the Ingestion scheduler factory
+     * @return the {@link Scheduler} instance for Ingestion jobs
+     * @throws Exception if the scheduler cannot be retrieved
+     */
+    @Bean(name = "ingestionScheduler")
+    public Scheduler ingestionScheduler(
+            @Qualifier("ingestionSchedulerFactory") SchedulerFactoryBean factory)
+            throws Exception {
+        return factory.getScheduler();
+    }
+}
+
+
+
+
+=============================================
+
+# ==================================================
+# QUARTZ INGESTION SCHEDULER (Document ingestion, on-demand)
+# ==================================================
+
+# Unique scheduler name, SCHED_NAME column in QUARTZ tables. Serves as a mechanism for developers & support folks to distinguish schedulers
+spring.quartz.properties.ingestion.org.quartz.scheduler.instanceName=IngestionScheduler
+
+# Must be unique for all schedulers. Using 'AUTO' as the instanceId to get Quartz to auto generate the Id.
+# INSTANCE_NAME column in the <tablePrefix>_SCHEDULER_STATE table and <tablePrefix>_FIRED_TRIGGERS table
+spring.quartz.properties.ingestion.org.quartz.scheduler.instanceId=AUTO
+
+# To instruct Quartz to wait for in progress jobs to complete before shutting down Quartz scheduler/application.
+spring.quartz.properties.ingestion.org.quartz.scheduler.waitForJobsToComplete=true
+
+# Thread pool size for ingestion jobs
+spring.quartz.properties.ingestion.org.quartz.threadPool.threadCount=3
+
+# JDBC JobStore for ingestion
+spring.quartz.properties.ingestion.org.quartz.jobStore.driverDelegateClass=org.quartz.impl.jdbcjobstore.MSSQLDelegate
+
+# Use different table prefix to avoid conflict with other scheduler
+spring.quartz.properties.ingestion.org.quartz.jobStore.tablePrefix=QRTZ_
+
+# Quartz's clustering features bring both high availability and scalability to the scheduler via fail-over and load balancing functionality
+spring.quartz.properties.ingestion.org.quartz.jobStore.isClustered=true
+
+# By default, Quartz uses StdRowLockSemaphore, which issues SQL like: SELECT * FROM QRTZ_LOCKS WHERE LOCK_NAME = ? FOR UPDATE
+# SQL Server does not support FOR UPDATE outside cursors as the app is throwing errors like: FOR UPDATE clause allowed only for DECLARE CURSOR
+# So, using UpdateLockRowSemaphore to change the locking strategy to use an UPDATE statement instead: UPDATE QRTZ_LOCKS SET LOCK_NAME = LOCK_NAME WHERE LOCK_NAME = ?
+spring.quartz.properties.ingestion.org.quartz.jobStore.lockHandler.class=org.quartz.impl.jdbcjobstore.UpdateLockRowSemaphore
+
+# ==================================================
+# Properties used by our code to configure Ingestion job & triggers the way we want.
+# ==================================================
+
+# Job name prefix for document ingestion jobs. The logic appends a unique id to this prefix to uniquely identify each job
+app.quartz.ingestion.jobNamePrefix=doc.ingestion
+# Indicates whether to replace Ingestion job or not if one already exists in the job store with the same name
+app.quartz.ingestion.replaceJob=true
+# Indicates whether to recover Ingestion job or not if it's interrupted due to application/scheduler shutdown
+app.quartz.ingestion.requestRecovery=true
+# Max Retry Count for retrying quartz jobs in case of transient exceptions.
+app.quartz.ingestion.maxRetryCount=3
+
+
+==============================  QuartzJobSchedulerService
+
+    package com.hanover.entp.dataext.service.async;
+
+import com.hanover.entp.dataext.job.DataExtractionJob;
+import com.hanover.entp.dataext.job.DocumentIngestionJob;
+import com.hanover.entp.dataext.job.ResponseOrchestrationJob;
+import com.hanover.entp.dataext.model.job.ExtractionJobMap;
+import com.hanover.entp.dataext.model.job.RequestScopedJobParams;
+import com.hanover.entp.dataext.util.AppConstants;
+import lombok.extern.slf4j.Slf4j;
+import org.quartz.*;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
-import java.time.LocalDate;
-import java.time.MonthDay;
-import java.time.format.DateTimeFormatter;
-import java.time.format.DateTimeFormatterBuilder;
-import java.time.format.DateTimeParseException;
-import java.time.temporal.ChronoUnit;
-import java.util.Locale;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
 
+/**
+ * Uses two schedulers - one for scheduling on demand Data extraction jobs and the other for
+ * scheduling recurring Response Aggregation & Dispatch jobs.
+ * Uses quartz configuration properties from application.properties.
+ */
 @Service
-public class QNBService {
+@Slf4j
+public class QuartzJobSchedulerService implements JobSchedulerService {
 
-    private static final int DAYS_WINDOW = 182;
+    // =========================================================
+    // Dispatcher config
+    // =========================================================
 
-    private static final DateTimeFormatter[] PARTIAL_DATE_FORMATTERS = {
-       
-    // "9 Oct", "17 Apr", "1 Jan"
-    new DateTimeFormatterBuilder()
-        .parseCaseInsensitive()
-        .appendPattern("d MMM")
-        .toFormatter(Locale.ENGLISH),
+    /**
+     * Indicates whether to replace Dispatcher job or not if one already exists in the job store
+     */
+    @Value("${app.quartz.dispatcher.replaceJob}")
+    private boolean replaceDispatcherJob;
 
-    // "9 October", "17 April", "1 January"
-    new DateTimeFormatterBuilder()
-        .parseCaseInsensitive()
-        .appendPattern("d MMMM")
-        .toFormatter(Locale.ENGLISH),
+    /**
+     * Indicates whether to store Dispatcher job or not in the job store when there are no active triggers.
+     */
+    @Value("${app.quartz.dispatcher.storeDurably}")
+    private boolean storeDispatcherJobDurably;
 
-    // "Oct 9", "Apr 17", "Jan 1"
-    new DateTimeFormatterBuilder()
-        .parseCaseInsensitive()
-        .appendPattern("MMM d")
-        .toFormatter(Locale.ENGLISH),
+    // =========================================================
+    // Extraction config
+    // =========================================================
 
-    // "Oct 09", "Apr 17"  (zero-padded)
-    new DateTimeFormatterBuilder()
-        .parseCaseInsensitive()
-        .appendPattern("MMM dd")
-        .toFormatter(Locale.ENGLISH),
+    /**
+     * Indicates whether to replace Extractor job or not if one already exists in the job store
+     */
+    @Value("${app.quartz.extraction.replaceJob}")
+    private boolean replaceExtractionJob;
 
-    // "October 9", "April 17", "May 1"  ← covers "May 1st" after normalization
-    new DateTimeFormatterBuilder()
-        .parseCaseInsensitive()
-        .appendPattern("MMMM d")
-        .toFormatter(Locale.ENGLISH),
+    /**
+     * Indicates whether to recover Extractor job or not if it's interrupted due to application/scheduler shutdown
+     */
+    @Value("${app.quartz.extraction.requestRecovery}")
+    private boolean requestExtractionJobRecovery;
 
-    // "October 09", "April 17"  (zero-padded)
-    new DateTimeFormatterBuilder()
-        .parseCaseInsensitive()
-        .appendPattern("MMMM dd")
-        .toFormatter(Locale.ENGLISH),
+    // =========================================================
+    // Ingestion config
+    // =========================================================
 
-    // "9 Oct 2025", "17 Apr 2025"  (year ignored, MonthDay extracted)
-    new DateTimeFormatterBuilder()
-        .parseCaseInsensitive()
-        .appendPattern("d MMM yyyy")
-        .toFormatter(Locale.ENGLISH),
+    /**
+     * Indicates whether to replace Ingestion job or not if one already exists in the job store
+     */
+    @Value("${app.quartz.ingestion.replaceJob}")
+    private boolean replaceIngestionJob;
 
-    // "9 October 2025", "17 April 2025"
-    new DateTimeFormatterBuilder()
-        .parseCaseInsensitive()
-        .appendPattern("d MMMM yyyy")
-        .toFormatter(Locale.ENGLISH),
+    /**
+     * Indicates whether to recover Ingestion job or not if it's interrupted due to application/scheduler shutdown
+     */
+    @Value("${app.quartz.ingestion.requestRecovery}")
+    private boolean requestIngestionJobRecovery;
 
-    // "October 9 2025", "April 17 2025"
-    new DateTimeFormatterBuilder()
-        .parseCaseInsensitive()
-        .appendPattern("MMMM d yyyy")
-        .toFormatter(Locale.ENGLISH),
+    // =========================================================
+    // Scheduler beans
+    // =========================================================
 
-    // "Oct 9 2025", "Apr 17 2025"
-    new DateTimeFormatterBuilder()
-        .parseCaseInsensitive()
-        .appendPattern("MMM d yyyy")
-        .toFormatter(Locale.ENGLISH),
-};
+    /**
+     * Used to schedule data extraction jobs
+     */
+    private final Scheduler extractionScheduler;
 
+    /**
+     * Used to schedule response aggregation & dispatch recurring job
+     */
+    private final Scheduler dispatcherScheduler;
 
-    public LocalDate resolveQuoteNeedByDate(JsonNode jsonNode) {
-        if (jsonNode == null || !jsonNode.has("quoteNeedByDate")) {
-            throw new IllegalArgumentException("JsonNode is missing 'quoteNeedByDate' field");
-        }
+    /**
+     * Used to ingest document from incoming request sources.
+     */
+    private final Scheduler ingestionScheduler;
 
-        String rawDate = jsonNode.get("quoteNeedByDate").asText().trim();
-        if (rawDate.isEmpty()) {
-            throw new IllegalArgumentException("'quoteNeedByDate' field is empty");
-        }
+    // =========================================================
+    // Constructor
+    // =========================================================
 
-        MonthDay monthDay = parsePartialDate(rawDate);
-        
-        // Fix: Pass LocalDate.now() to match the method signature
-        return resolveWithinWindow(monthDay, LocalDate.now());
+    /**
+     * Constructs QuartzJobSchedulerService with required dependencies.
+     *
+     * @param extractionScheduler  to schedule data extraction jobs
+     * @param dispatcherScheduler  to schedule recurring response aggregation & dispatch job
+     * @param ingestionScheduler   to schedule document ingestion jobs
+     */
+    public QuartzJobSchedulerService(
+            final @Qualifier("extractionScheduler") Scheduler extractionScheduler,
+            final @Qualifier("dispatcherScheduler") Scheduler dispatcherScheduler,
+            final @Qualifier("ingestionScheduler")  Scheduler ingestionScheduler) {
+        this.extractionScheduler = extractionScheduler;
+        this.dispatcherScheduler = dispatcherScheduler;
+        this.ingestionScheduler  = ingestionScheduler;
     }
 
-private static MonthDay parsePartialDate(String rawDate) {
-        if (rawDate == null || rawDate.isBlank()) {
-            //log.error("Null or blank date input");
-            return null;
-        }
-        String normalized = normalize(rawDate);
+    // =========================================================
+    // scheduleDataExtractionJobsAsync
+    // =========================================================
+
+    /**
+     * Schedules jobs in batch to avoid multiple trips by Quartz to the database.
+     * Iterates through the list of jobs map to build Job Details & Trigger for each job.
+     * Appends documentID passed in the job map for each item to create a unique job & trigger names.
+     *
+     * @param jobNamePrefix Prefix to the job names. Appended with the documentId to uniquely identify each job.
+     *                      Goes in JOB_NAME column of the quartz tables. Also used as prefix for
+     *                      JOB_GROUP, TRIGGER_NAME & TRIGGER_GROUP tables
+     * @param jobs          List of documentId & job parameters objects to be used to create jobs in batch
+     * @param delay         Duration after which the job needs to be scheduled, to facilitate scheduling
+     *                      retries with backoff. The start time for the trigger.
+     */
+    @Override
+    public void scheduleDataExtractionJobsAsync(
+            String jobNamePrefix,
+            List<ExtractionJobMap> jobs,
+            Duration delay) throws SchedulerException {
+
         try {
-            if (normalized.matches("\\d{1,2}")) {
-                int day = Integer.parseInt(normalized);
-                if (day < 1 || day > 31) {
-                    //log.error("Day out of valid range: {}", day);
-                    return null;
-                }
-                return resolveMonthDay(LocalDate.now().getMonth(), day);
-            }
-            if (normalized.matches("\\d+")) {
-               // log.error("Day number out of range: {}", normalized);
-                return null;
-            }
-            // Strip trailing year if present e.g. "15 May 2024"
-            normalized = normalized.replaceAll("\\b\\d{4}\\b", "").replaceAll("\\s+", " ").trim();
+            String jobGroup     = jobNamePrefix + ".group";
+            String triggerGroup = jobNamePrefix + ".trigger.group";
+            Map<JobDetail, Set<? extends Trigger>> jobsAndTriggers = new HashMap<>();
 
-            TemporalAccessor accessor = PARTIAL_DATE_FORMATTERS.parse(normalized);
-            int day     = accessor.get(ChronoField.DAY_OF_MONTH);
-            Month month = Month.of(accessor.get(ChronoField.MONTH_OF_YEAR));
-            if (day < 1) {
-                //log.error("Invalid day parsed: {}", day);
-                return null;
+            for (ExtractionJobMap jobMap : jobs) {
+
+                String triggerName      = jobNamePrefix + ".trigger." + jobMap.getDocumentID();
+                String updatedJobName   = jobNamePrefix + ".job."     + jobMap.getDocumentID();
+                JobKey    jobKey        = JobKey.jobKey(updatedJobName, jobGroup);
+                TriggerKey triggerKey   = TriggerKey.triggerKey(triggerName, triggerGroup);
+
+                JobDetail jobDetail = JobBuilder.newJob(DataExtractionJob.class)
+                        .withIdentity(jobKey)
+                        .setJobData(new JobDataMap(jobMap.getJobMap()))
+                        .requestRecovery(requestExtractionJobRecovery)
+                        .build();
+
+                Trigger trigger = TriggerBuilder.newTrigger()
+                        .withIdentity(triggerKey)
+                        .forJob(jobDetail)
+                        .startAt(Date.from(Instant.now().plus(delay)))
+                        .build();
+
+                jobsAndTriggers.put(jobDetail, Set.of(trigger));
             }
-            return resolveMonthDay(month, day);
-        } catch (Exception ignored) {
-            //log.error("Error parsing partial date {}", normalized, ignored);
-            return null;
+
+            extractionScheduler.scheduleJobs(jobsAndTriggers, replaceExtractionJob);
+
+        } catch (SchedulerException exception) {
+            throw new SchedulerException(
+                "Failed to schedule Quartz job: " + jobNamePrefix, exception);
         }
     }
+
+    // =========================================================
+    // scheduleRecurringDispatcherJobWithCron
+    // =========================================================
 
     /**
-     * Returns a valid MonthDay, rolling over to next month's 1st if the day
-     * exceeds the month's maximum (e.g. April 31 → May 1).
+     * Schedules job that runs on schedule based on the cron expression provided.
+     * Checks if a job already exists with the same jobName & group before creating a new one.
+     * If one exists, updates the existing job by replacing the job.
+     * Similarly, checks if a trigger already exists with the same trigger name & group before creating a new one.
+     * If one exists, reschedules the job using the new trigger.
+     *
+     * @param jobName        Name of the job. Goes in JOB_NAME column of the quartz tables.
+     *                       Also used as prefix for JOB_GROUP, TRIGGER_NAME & TRIGGER_GROUP tables
+     * @param jobParameters  Data Map to be passed to the job
+     * @param cronExpression Cron expression indicating the schedule
      */
-    private static MonthDay resolveMonthDay(Month month, int day) {
-        int maxDay = month.maxLength(); // maxLength accounts for leap year (Feb → 29)
+    @Override
+    public void scheduleRecurringDispatcherJobWithCron(
+            String jobName,
+            Map<String, Object> jobParameters,
+            String cronExpression) {
 
-        if (day <= maxDay) {
-            return MonthDay.of(month, day);
+        try {
+            String triggerName  = jobName + ".trigger";
+            String jobGroup     = jobName + ".group";
+            String triggerGroup = jobName + ".trigger.group";
+
+            JobKey    jobKey    = JobKey.jobKey(jobName, jobGroup);
+            TriggerKey triggerKey = TriggerKey.triggerKey(triggerName, triggerGroup);
+
+            JobDetail jobDetail = JobBuilder.newJob(ResponseOrchestrationJob.class)
+                    .withIdentity(jobKey)
+                    .setJobData(new JobDataMap(jobParameters))
+                    .storeDurably(storeDispatcherJobDurably) // So we can update the job on restart
+                    .build();
+
+            CronScheduleBuilder scheduleBuilder = CronScheduleBuilder
+                    .cronSchedule(cronExpression)
+                    .withMisfireHandlingInstructionDoNothing();
+
+            Trigger trigger = TriggerBuilder.newTrigger()
+                    .withIdentity(triggerKey)
+                    .forJob(jobDetail)
+                    .withSchedule(scheduleBuilder)
+                    .build();
+
+            /*
+             * Check if job exists
+             */
+            JobDetail existingJob = dispatcherScheduler.getJobDetail(jobKey);
+
+            if (existingJob == null) {
+                /*
+                 * No job in DB. So, create new job + trigger
+                 */
+                dispatcherScheduler.scheduleJob(jobDetail, trigger);
+                return;
+            }
+
+            /*
+             * Job exists. So, update job definition (if changed).
+             */
+            dispatcherScheduler.addJob(jobDetail, replaceDispatcherJob); // "true" means replace existing
+
+            /*
+             * Update or create the trigger
+             */
+            Trigger existingTrigger = dispatcherScheduler.getTrigger(triggerKey);
+
+            if (existingTrigger == null) {
+                /*
+                 * Create trigger if it doesn't exist
+                 */
+                dispatcherScheduler.scheduleJob(trigger);
+            } else {
+                /*
+                 * Replace trigger on every restart to pick up code changes.
+                 * Useful when the cron schedule was updated in prod.
+                 */
+                dispatcherScheduler.rescheduleJob(triggerKey, trigger);
+            }
+
+        } catch (SchedulerException exception) {
+            throw new RuntimeException(
+                "Failed to schedule recurring Quartz job: " + jobName, exception);
         }
-
-        // Day exceeds month's max → roll over to 1st of next month
-        Month nextMonth = month.plus(1); // wraps Dec → Jan automatically
-        //log.warn("Date {}/{} is invalid, rolling over to {}/1", day, month, nextMonth);
-        return MonthDay.of(nextMonth, 1);
     }
 
-    static String normalize(String rawDate) {
-        String n = rawDate.replaceAll("(?i)\\bthe\\b", "").trim();       // strip "the"
-        n = n.replaceAll("(?i)(?<=\\d)(st|nd|rd|th)\\b", "").trim();    // strip ordinals
-        n = n.replaceAll("(?i)\\bof\\b", "").trim();                     // strip "of"
-        n = n.replaceAll("\\s+", " ").trim();                            // collapse spaces
-        return n;
+    // =========================================================
+    // scheduleResponseAggregationJobAsync
+    // =========================================================
+
+    @Override
+    public void scheduleResponseAggregationJobAsync(
+            String jobNamePrefix,
+            Map<String, Object> jobParameters) {
+
+        try {
+            String requestId    = String.valueOf(jobParameters.get(AppConstants.QUARTZ_REQUEST_ID));
+
+            String jobGroup     = jobNamePrefix + ".group";
+            String triggerGroup = jobNamePrefix + ".trigger.group";
+            String triggerName  = jobNamePrefix + ".trigger" + requestId;
+            String jobName      = jobNamePrefix + requestId;
+
+            JobKey    jobKey    = JobKey.jobKey(jobName, jobGroup);
+            TriggerKey triggerKey = TriggerKey.triggerKey(triggerName, triggerGroup);
+
+            JobDetail jobDetail = JobBuilder.newJob(ResponseOrchestrationJob.class)
+                    .withIdentity(jobKey)
+                    .setJobData(new JobDataMap(jobParameters))
+                    .requestRecovery(true)
+                    .build();
+
+            Trigger trigger = TriggerBuilder.newTrigger()
+                    .withIdentity(triggerKey)
+                    .forJob(jobDetail)
+                    .startNow()
+                    .build();
+
+            dispatcherScheduler.scheduleJob(jobDetail, trigger);
+
+        } catch (SchedulerException exception) {
+            throw new RuntimeException(
+                "Failed to schedule Quartz job: " + jobNamePrefix, exception);
+        }
     }
+
+    // =========================================================
+    // scheduleDocumentIngestionJobAsync
+    // =========================================================
 
     /**
-     * Finds the occurrence of the MonthDay that falls within the 
-     * next 182 days. If multiple or none, it picks the one closest 
-     * to the window start (the "soonest" valid date).
+     * Schedules a {@link DocumentIngestionJob} for immediate, one-shot execution.
+     * Builds a JobDetail and a fire-once Trigger, then submits to the ingestionScheduler.
+     * Checks if a job/trigger already exists and replaces/reschedules as needed,
+     * consistent with the extraction and dispatcher scheduler patterns.
+     *
+     * @param jobNamePrefix Prefix for job/trigger/group names. Appended with requestId
+     *                      to uniquely identify each job.
+     * @param jobParams     {@link RequestScopedJobParams} containing source type, source location,
+     *                      request context etc.
+     * @param uniqueID      Unique ID for this data extraction run
+     * @throws SchedulerException if the job cannot be scheduled
      */
-    private LocalDate resolveWithinWindow(MonthDay monthDay, LocalDate baseDate) {
-    LocalDate best = null;
-    long smallestDiff = Long.MAX_VALUE;
+    @Override
+    public void scheduleDocumentIngestionJobAsync(
+            String jobNamePrefix,
+            RequestScopedJobParams jobParams,
+            UUID uniqueID) throws SchedulerException {
 
-    for (int yearOffset = -1; yearOffset <= 1; yearOffset++) {
-        int targetYear = baseDate.getYear() + yearOffset;
+        try {
+            String requestId    = jobParams.getRequest().getReqHeader().getRequestID();
 
-        // Skip Feb 29 on non-leap years explicitly
-        if (monthDay.equals(MonthDay.of(2, 29)) && !java.time.Year.isLeap(targetYear)) {
-            continue;
-        }
+            String jobGroup     = jobNamePrefix + ".group";
+            String triggerGroup = jobNamePrefix + ".trigger.group";
+            String jobName      = jobNamePrefix + requestId;
+            String triggerName  = jobNamePrefix + ".trigger." + requestId;
 
-        LocalDate candidate = monthDay.atYear(targetYear);
-        long daysFromToday = ChronoUnit.DAYS.between(baseDate, candidate);
+            JobKey    jobKey    = JobKey.jobKey(jobName, jobGroup);
+            TriggerKey triggerKey = TriggerKey.triggerKey(triggerName, triggerGroup);
 
-        if (daysFromToday >= 0 && daysFromToday <= DAYS_WINDOW) {
-            if (daysFromToday < smallestDiff) {
-                smallestDiff = daysFromToday;
-                best = candidate;
-            }
-        }
-    }
+            // Build JobDataMap carrying both jobParams and uniqueID
+            JobDataMap dataMap = new JobDataMap();
+            dataMap.put("jobParams", jobParams);
+            dataMap.put("dataExtractionUniqueID", uniqueID);
 
-    if (best == null) {
-        // Fallback: find the next future occurrence after the window
-        // Fix: compare the full date, not just the month number
-        LocalDate sameYear = monthDay.equals(MonthDay.of(2, 29))
-            ? null  // handle leap separately
-            : monthDay.atYear(baseDate.getYear());
+            JobDetail jobDetail = JobBuilder.newJob(DocumentIngestionJob.class)
+                    .withIdentity(jobKey)
+                    .setJobData(dataMap)
+                    .requestRecovery(requestIngestionJobRecovery)
+                    .build();
 
-        if (sameYear != null && sameYear.isAfter(baseDate)) {
-            // same year date is in the future but beyond window → use it
-            return sameYear;
-        } else {
-            // same year date is in the past or today → use next year
-            int nextYear = baseDate.getYear() + 1;
-            // For Feb 29, find the next leap year
-            if (monthDay.equals(MonthDay.of(2, 29))) {
-                while (!java.time.Year.isLeap(nextYear)) nextYear++;
-            }
-            return monthDay.atYear(nextYear);
-        }
-    }
+            Trigger trigger = TriggerBuilder.newTrigger()
+                    .withIdentity(triggerKey)
+                    .forJob(jobDetail)
+                    .startNow()
+                    .build();
 
-    return best;
-}
+            /*
+             * Check if job exists
+             */
+            JobDetail existingJob = ingestionScheduler.getJobDetail(jobKey);
 
-    public JsonNode resolveAndOverrideQuoteNeedByDate(JsonNode jsonNode) {
-        LocalDate resolvedDate = resolveQuoteNeedByDate(jsonNode);
-
-        if (!(jsonNode instanceof ObjectNode)) {
-            throw new IllegalArgumentException("JsonNode must be an ObjectNode to allow field override");
-        }
-
-        ObjectNode objectNode = (ObjectNode) jsonNode;
-        objectNode.put("quoteNeedByDate", resolvedDate.toString()); 
-
-        return objectNode;
-    }
-
-
-    public String buildRowsJson(DocumentTable table) throws Exception {
-
-    Map<Integer, Map<Integer, String>> rows = new TreeMap<>();
-
-    // Step 1: Build row → column map
-    for (DocumentCell cell : table.getCells()) {
-
-        if (cell.getRowIndex() == null || cell.getColumnIndex() == null) {
-            continue;
-        }
-
-        int row = cell.getRowIndex();
-        int col = cell.getColumnIndex();
-
-        String value = cell.getContent() == null ? "" : cell.getContent().trim();
-
-        rows.computeIfAbsent(row, r -> new TreeMap<>())
-                .merge(col, value, (a, b) -> a + "\n" + b);
-    }
-
-    // Step 2: Detect columns dynamically
-    int headerRow = -1;
-    Integer locCol = null;
-    Integer bldgCol = null;
-    Integer descCol = null;
-
-    for (Map.Entry<Integer, Map<Integer, String>> entry : rows.entrySet()) {
-
-        int rowIndex = entry.getKey();
-
-        for (Map.Entry<Integer, String> colEntry : entry.getValue().entrySet()) {
-
-            String text = normalize(colEntry.getValue());
-
-            if (text.contains("LOC")) {
-                locCol = colEntry.getKey();
-                headerRow = rowIndex;
+            if (existingJob == null) {
+                /*
+                 * No job in DB. So, create new job + trigger
+                 */
+                ingestionScheduler.scheduleJob(jobDetail, trigger);
+                return;
             }
 
-            if (text.contains("BLDG")) {
-                bldgCol = colEntry.getKey();
-                headerRow = rowIndex;
+            /*
+             * Job exists. So, update job definition (if changed).
+             */
+            ingestionScheduler.addJob(jobDetail, replaceIngestionJob);
+
+            /*
+             * Update or create the trigger
+             */
+            Trigger existingTrigger = ingestionScheduler.getTrigger(triggerKey);
+
+            if (existingTrigger == null) {
+                /*
+                 * Create trigger if it doesn't exist
+                 */
+                ingestionScheduler.scheduleJob(trigger);
+            } else {
+                /*
+                 * Replace trigger on every restart to pick up any changes.
+                 */
+                ingestionScheduler.rescheduleJob(triggerKey, trigger);
             }
 
-            if (text.contains("DESCRIPTION")) {
-                descCol = colEntry.getKey();
-                headerRow = rowIndex;
-            }
-        }
-
-        if (locCol != null && bldgCol != null && descCol != null) {
-            break;
+        } catch (SchedulerException exception) {
+            throw new SchedulerException(
+                "Failed to schedule document ingestion Quartz job: " + jobNamePrefix, exception);
         }
     }
-
-    if (locCol == null || bldgCol == null || descCol == null) {
-        throw new IllegalStateException("Could not detect required columns");
-    }
-
-    ObjectMapper mapper = new ObjectMapper();
-    ObjectNode root = mapper.createObjectNode();
-    ArrayNode locationsArray = mapper.createArrayNode();
-
-    String currentLoc = null;
-    String currentBldg = null;
-    StringBuilder addressBuffer = new StringBuilder();
-
-    for (Map.Entry<Integer, Map<Integer, String>> entry : rows.entrySet()) {
-
-        int rowIndex = entry.getKey();
-
-        if (rowIndex <= headerRow) {
-            continue;
-        }
-
-        Map<Integer, String> cols = entry.getValue();
-
-        String loc = cols.getOrDefault(locCol, "").trim();
-        String bldg = cols.getOrDefault(bldgCol, "").trim();
-        String desc = normalize(cols.getOrDefault(descCol, ""));
-
-        // Skip label rows
-        if (desc.equalsIgnoreCase("ADDRESS OF PROPERTY")) {
-            continue;
-        }
-
-        boolean isStartRow = !loc.isBlank() && !bldg.isBlank();
-
-        if (isStartRow) {
-
-            if (currentLoc != null) {
-                ObjectNode obj = mapper.createObjectNode();
-                obj.put("locationNumber", currentLoc);
-                obj.put("buildingNumber", currentBldg);
-                obj.put("address", cleanAddress(addressBuffer.toString()));
-                locationsArray.add(obj);
-            }
-
-            currentLoc = loc;
-            currentBldg = bldg;
-            addressBuffer = new StringBuilder();
-        }
-
-        if (currentLoc != null && !desc.isBlank()) {
-            addressBuffer.append(desc).append(" ");
-        }
-    }
-
-    // flush last record
-    if (currentLoc != null) {
-        ObjectNode obj = mapper.createObjectNode();
-        obj.put("locationNumber", currentLoc);
-        obj.put("buildingNumber", currentBldg);
-        obj.put("address", cleanAddress(addressBuffer.toString()));
-        locationsArray.add(obj);
-    }
-
-    root.set("locations", locationsArray);
-
-    return mapper.writerWithDefaultPrettyPrinter().writeValueAsString(root);
-}
-
-    public class LocationDto {
-    private String locationNumber;
-    private String buildingNumber;
-    private String address;
-
-    public LocationDto(String locationNumber, String buildingNumber, String address) {
-        this.locationNumber = locationNumber;
-        this.buildingNumber = buildingNumber;
-        this.address = address;
-    }
-
-    // getters/setters
-}
-
-    private String normalize(String value) {
-    if (value == null) return "";
-    return value
-            .toUpperCase()
-            .replace("\n", " ")
-            .replaceAll("\\s+", " ")
-            .trim();
-}
-
-private String cleanAddress(String value) {
-    if (value == null) return "";
-    return value
-            .replace("\n", " ")
-            .replaceAll("\\s+", " ")
-            .trim();
 }
 
 
+============================JobSchedulerService
 
+package com.hanover.entp.dataext.service.async;
 
+import com.hanover.entp.dataext.model.job.ExtractionJobMap;
+import com.hanover.entp.dataext.model.job.RequestScopedJobParams;
+import org.quartz.SchedulerException;
 
+import java.time.Duration;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 
-
-
-    /**
-     * Main entry point.
-     * Combines all tables + raw text (non-table content) into a single
-     * GPT-ready user message string.
-     *
-     * @param result  AnalyzeResult from Azure Document Intelligence poller.getFinalResult()
-     * @return        A formatted string ready to be sent to GPT as the user message
-     */
-    public static String buildGptInput(AnalyzeResult result) {
-        StringBuilder sb = new StringBuilder();
- 
-        // --- Section 1: Raw text for header/non-table fields ---
-        sb.append("=== FORM HEADER / NON-TABLE FIELDS ===\n");
-        if (result.getContent() != null && !result.getContent().isBlank()) {
-            sb.append(result.getContent().trim());
-        } else {
-            sb.append("(none)");
-        }
-        sb.append("\n\n");
- 
-        // --- Section 2: Tables in Markdown format ---
-        List<DocumentTable> tables = result.getTables();
-        if (tables == null || tables.isEmpty()) {
-            sb.append("=== TABLES ===\n(no tables found)\n");
-        } else {
-            sb.append("=== TABLES ===\n");
-            for (int i = 0; i < tables.size(); i++) {
-                sb.append("TABLE ").append(i + 1).append(":\n");
-                sb.append(tableToMarkdown(tables.get(i)));
-                sb.append("\n");
-            }
-        }
- 
-        return sb.toString();
-    }
- 
-    /**
-     * Converts a single DocumentTable into a Markdown table string.
-     * Empty cells are preserved as blank (between pipes), which is
-     * critical so GPT does not skip or hallucinate missing fields.
-     *
-     * @param table  DocumentTable from AnalyzeResult
-     * @return       Markdown-formatted table string
-     */
-    public static String tableToMarkdown(DocumentTable table) {
-        int rowCount = table.getRowCount();
-        int colCount = table.getColumnCount();
- 
-        // Pre-fill grid with empty strings — ensures blank cells are explicit
-        String[][] grid = new String[rowCount][colCount];
-        for (String[] row : grid) {
-            Arrays.fill(row, "");
-        }
- 
-        // Fill in values from DocumentTableCell
-        for (DocumentTableCell cell : table.getCells()) {
-            int row = cell.getRowIndex();
-            int col = cell.getColumnIndex();
- 
-            // Bounds check (defensive)
-            if (row < rowCount && col < colCount) {
-                String content = cell.getContent();
-                grid[row][col] = (content != null) ? content.trim() : "";
-            }
-        }
- 
-        return gridToMarkdown(grid);
-    }
- 
-    /**
-     * Converts a 2D String grid to a Markdown table.
-     * Row 0 is treated as the header row.
-     *
-     * @param grid  2D array of cell values
-     * @return      Markdown table string
-     */
-    private static String gridToMarkdown(String[][] grid) {
-        if (grid.length == 0) return "(empty table)\n";
- 
-        StringBuilder sb = new StringBuilder();
- 
-        for (int r = 0; r < grid.length; r++) {
-            // Build row
-            sb.append("| ");
-            sb.append(String.join(" | ", grid[r]));
-            sb.append(" |\n");
- 
-            // Add separator line after header row (row 0)
-            if (r == 0) {
-                sb.append("| ");
-                for (int c = 0; c < grid[r].length; c++) {
-                    sb.append("--- |");
-                    if (c < grid[r].length - 1) sb.append(" ");
-                }
-                sb.append("\n");
-            }
-        }
- 
-        return sb.toString();
-    }
- 
-    /**
-     * Builds the GPT system prompt.
-     * Focuses purely on extraction rules — output structure and schema
-     * are enforced separately via OpenAI responseFormat / JSON schema.
-     *
-     * Pair this with buildGptInput() as the user message.
-     *
-     * @return System prompt string for GPT
-     */
-    public static String buildSystemPrompt() {
-        return """
-                You are an insurance form data extraction assistant.
-                You will receive content extracted from insurance forms via Azure Document Intelligence.
-                The content has two sections:
-                  1. FORM HEADER / NON-TABLE FIELDS - raw text from headers and non-table regions
-                  2. TABLES - one or more Markdown-formatted tables (empty cells are blank between pipes)
- 
-                GENERAL EXTRACTION RULES:
-                - Extract ALL fields from the header section into headerFields
-                - Extract ALL tables, preserving every row and column
-                - Preserve empty string "" for ALL blank cells — do NOT skip or omit them
-                - If no clear header row exists, use column keys: col_0, col_1, col_2, etc.
- 
-                LOCATION AND BUILDING NUMBER RULES:
-                - "locationNumber" maps to the LOC # column (also written as "Loc #", "Location #", "Loc No", or equivalent)
-                - "buildingNumber" maps to the BLDG # column (also written as "Bldg #", "Building #", "Bldg No", or equivalent)
-                - If a locationNumber or buildingNumber cell is blank, inherit the last non-blank value
-                  seen above it in the same table column — do NOT leave it blank if a prior row had a value
-                - If no value exists anywhere in the column, use ""
- 
-                ADDRESS PARSING RULES:
-                - Insurance forms often spread an address across multiple lines within a single cell
-                  or across consecutive rows in the same column. Reconstruct and parse into:
-                    street  - street number and name only (e.g. "15565 County Rd #517")
-                    city    - city name only (e.g. "Dexter")
-                    state   - 2-letter state code only (e.g. "MO")
-                    zip     - ZIP or ZIP+4 code only (e.g. "63841")
-                - If any address component cannot be determined, use ""
-                - Address fields must be extracted independently per row from that row's own cell content.
-                  Do NOT carry over an address from a previous row if the current row's address cell is blank.
-                """;
-    }
-
-    ====================
-
-
+public interface JobSchedulerService {
 
     /**
-     * Main entry point.
-     * Combines all tables + raw text (non-table content) into a single
-     * GPT-ready user message string.
+     * Schedules data extraction jobs in batch.
      *
-     * @param result  AnalyzeResult from Azure Doc Intelligence poller.getFinalResult()
-     * @return        Formatted string ready to be sent to GPT as the user message
+     * @param jobNamePrefix Prefix to the job names
+     * @param jobs          List of documentId & job parameters objects
+     * @param delay         Duration after which the job needs to be scheduled
      */
-    public static String buildGptInput(AnalyzeResult result) {
-        StringBuilder sb = new StringBuilder();
- 
-        // --- Section 1: Raw text for header/non-table fields ---
-        sb.append("=== FORM HEADER / NON-TABLE FIELDS ===\n");
-        if (result.getContent() != null && !result.getContent().isBlank()) {
-            sb.append(result.getContent().trim());
-        } else {
-            sb.append("(none)");
-        }
-        sb.append("\n\n");
- 
-        // --- Section 2: Tables in Markdown format ---
-        List<DocumentTable> tables = result.getTables();
-        if (tables == null || tables.isEmpty()) {
-            sb.append("=== TABLES ===\n(no tables found)\n");
-        } else {
-            sb.append("=== TABLES ===\n");
-            for (int i = 0; i < tables.size(); i++) {
-                sb.append("TABLE ").append(i + 1).append(":\n");
-                sb.append(tableToMarkdown(tables.get(i)));
-                sb.append("\n");
-            }
-        }
- 
-        return sb.toString();
-    }
- 
+    void scheduleDataExtractionJobsAsync(
+            String jobNamePrefix,
+            List<ExtractionJobMap> jobs,
+            Duration delay) throws SchedulerException;
+
     /**
-     * Converts a single DocumentTable into a Markdown table string.
+     * Schedules a recurring dispatcher job using a cron expression.
      *
-     * Azure Doc Intelligence only reports cells that have content.
-     * Blank rows produce zero cells for that row index, so naive iteration
-     * over getCells() silently drops those rows entirely.
-     *
-     * Fix: allocate the full grid using getRowCount() x getColumnCount()
-     * (pre-filled with ""), then only overwrite cells that were actually
-     * reported. Rows with no reported cells remain as all-empty strings,
-     * which render as fully blank rows in Markdown — visible to GPT.
-     *
-     * @param table  DocumentTable from AnalyzeResult
-     * @return       Markdown-formatted table string with blank rows preserved
+     * @param jobName        Name of the job
+     * @param jobParameters  Data Map to be passed to the job
+     * @param cronExpression Cron expression indicating the schedule
      */
-    public static String tableToMarkdown(DocumentTable table) {
-        int rowCount = table.getRowCount();
-        int colCount = table.getColumnCount();
- 
-        // Step 1: Allocate full grid pre-filled with ""
-        // This is the key fix — blank rows exist here even if getCells() omits them
-        String[][] grid = new String[rowCount][colCount];
-        for (String[] row : grid) {
-            Arrays.fill(row, "");
-        }
- 
-        // Step 2: Track which row indices actually have at least one cell reported
-        Set<Integer> rowsWithContent = new HashSet<>();
- 
-        // Step 3: Fill in only the cells Doc Intelligence did report
-        for (DocumentTableCell cell : table.getCells()) {
-            int row = cell.getRowIndex();
-            int col = cell.getColumnIndex();
- 
-            if (row < rowCount && col < colCount) {
-                String content = cell.getContent();
-                grid[row][col] = (content != null) ? content.trim() : "";
-                rowsWithContent.add(row);
-            }
-        }
- 
-        // Step 4: Log blank rows for visibility (helpful during debugging)
-        for (int r = 0; r < rowCount; r++) {
-            if (!rowsWithContent.contains(r)) {
-                System.out.printf("[DocumentTableExtractor] Row %d is fully blank " +
-                        "(no cells reported by Doc Intelligence) — preserved as empty row in grid%n", r);
-            }
-        }
- 
-        return gridToMarkdown(grid);
-    }
- 
+    void scheduleRecurringDispatcherJobWithCron(
+            String jobName,
+            Map<String, Object> jobParameters,
+            String cronExpression);
+
     /**
-     * Converts a 2D String grid to a Markdown table.
-     * Row 0 is treated as the header row and gets a separator line.
-     * All subsequent rows — including fully blank ones — are rendered.
+     * Schedules a one-shot response aggregation job for immediate execution.
      *
-     * @param grid  2D array of cell values (blank rows are all "")
-     * @return      Markdown table string
+     * @param jobNamePrefix  Prefix for job/trigger/group names
+     * @param jobParameters  Data Map to be passed to the job
      */
-    private static String gridToMarkdown(String[][] grid) {
-        if (grid.length == 0) return "(empty table)\n";
- 
-        StringBuilder sb = new StringBuilder();
- 
-        for (int r = 0; r < grid.length; r++) {
-            sb.append("| ");
-            sb.append(String.join(" | ", grid[r]));
-            sb.append(" |\n");
- 
-            // Separator after header row
-            if (r == 0) {
-                sb.append("| ");
-                for (int c = 0; c < grid[r].length; c++) {
-                    sb.append("--- |");
-                    if (c < grid[r].length - 1) sb.append(" ");
-                }
-                sb.append("\n");
-            }
+    void scheduleResponseAggregationJobAsync(
+            String jobNamePrefix,
+            Map<String, Object> jobParameters);
+
+    /**
+     * Schedules a {@link com.hanover.entp.dataext.job.DocumentIngestionJob}
+     * for immediate, one-shot execution via the ingestion scheduler.
+     *
+     * @param jobNamePrefix Prefix for job/trigger/group names. Appended with requestId
+     *                      to uniquely identify each job.
+     * @param jobParams     {@link RequestScopedJobParams} containing source type,
+     *                      source location, request context etc.
+     * @param uniqueID      Unique ID for this data extraction run
+     * @throws SchedulerException if the job cannot be scheduled
+     */
+    void scheduleDocumentIngestionJobAsync(
+            String jobNamePrefix,
+            RequestScopedJobParams jobParams,
+            UUID uniqueID) throws SchedulerException;
+}
+
+====================== DocumentIngestionJob
+
+package com.hanover.entp.dataext.job;
+
+import com.hanover.entp.dataext.model.api.aiextraction.AIExtractionRequest;
+import com.hanover.entp.dataext.model.data.prompt.PromptModel;
+import com.hanover.entp.dataext.model.job.RequestScopedJobParams;
+import com.hanover.entp.dataext.service.PromptService;
+import com.hanover.entp.dataext.service.dataextraction.IngestionStrategy;
+import com.hanover.entp.dataext.service.dataextraction.IngestionStrategyResolver;
+import com.hanover.entp.dataext.service.dataextraction.SourceType;
+import com.hanover.entp.dataext.service.storage.StorageService;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.quartz.Job;
+import org.quartz.JobDataMap;
+import org.quartz.JobExecutionContext;
+import org.quartz.JobExecutionException;
+import org.springframework.stereotype.Component;
+
+import java.util.List;
+import java.util.UUID;
+
+@Slf4j
+@Component
+@RequiredArgsConstructor
+public class DocumentIngestionJob implements Job {
+
+    private final IngestionStrategyResolver ingestionStrategyResolver;
+    private final PromptService promptService;
+
+    /**
+     * Executes the document ingestion job.
+     * <p>
+     * Retrieves {@link RequestScopedJobParams} and the data extraction unique ID
+     * from the {@link JobDataMap}, resolves the appropriate {@link IngestionStrategy}
+     * based on the source type, and calls {@link IngestionStrategy#ingest} to produce
+     * a list of {@link StorageService.StoredFileInfo} objects.
+     *
+     * @param context the Quartz job execution context
+     * @throws JobExecutionException if the job fails; non-retryable for unsupported
+     *                               source types, retryable for all other exceptions
+     */
+    @Override
+    public void execute(JobExecutionContext context) throws JobExecutionException {
+
+        JobDataMap dataMap = context.getMergedJobDataMap();
+        RequestScopedJobParams jobParams =
+                (RequestScopedJobParams) dataMap.get("jobParams");
+        UUID dataExtractionUniqueID =
+                (UUID) dataMap.get("dataExtractionUniqueID");
+
+        AIExtractionRequest request = jobParams.getRequest();
+
+        log.info("DocumentIngestionJob started for requestID: {}, uniqueID: {}",
+                request.getReqHeader().getRequestID(),
+                dataExtractionUniqueID);
+
+        try {
+            // Resolve ingestion strategy based on source type
+            IngestionStrategy ingestionStrategy = ingestionStrategyResolver.resolve(
+                    SourceType.fromValue(
+                            request.getData().getDocumentSource().getStorageType()
+                    )
+            );
+
+            // Load the prompt model
+            PromptModel promptModel = promptService.getPromptByIdChecked(
+                    request.getData().getPromptID()
+            );
+
+            // Ingest documents — returns list of StoredFileInfo objects
+            List<StorageService.StoredFileInfo> storedFiles = ingestionStrategy.ingest(
+                    request,
+                    dataExtractionUniqueID,
+                    promptModel
+            );
+
+            log.info("DocumentIngestionJob completed for requestID: {}, uniqueID: {}. " +
+                            "Files ingested: {}",
+                    request.getReqHeader().getRequestID(),
+                    dataExtractionUniqueID,
+                    storedFiles.size());
+
+        } catch (UnsupportedOperationException e) {
+            log.error("No ingestion strategy found for sourceType. requestID: {}, uniqueID: {}",
+                    request.getReqHeader().getRequestID(), dataExtractionUniqueID, e);
+            // false = do NOT re-fire; unsupported source type won't fix itself on retry
+            throw new JobExecutionException(e, false);
+        } catch (Exception e) {
+            log.error("DocumentIngestionJob failed for requestID: {}, uniqueID: {}",
+                    request.getReqHeader().getRequestID(), dataExtractionUniqueID, e);
+            // true = re-fire; transient failures (network, DB) may succeed on retry
+            throw new JobExecutionException(e, true);
         }
- 
-        return sb.toString();
     }
+}    
+
+
     
-}
+
+
+
+    
